@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,13 +1,12 @@
-import './App.css'
+import { Button } from "@/components/ui/button";
 
 function App() {
-  
-
   return (
-    <>
-     <div className='bg-amber-600'>hello</div>
-    </>
-  )
+    <div className="flex min-h-screen items-center justify-center">
+      <Button>Welcome to CogniMart 🚀</Button>
+    </div>
+  );
 }
 
-export default App
+export default App;
+
