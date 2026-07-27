@@ -1,14 +1,14 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink } from "react-router-dom";
 
 function Logo() {
   return (
-    <NavLink 
-      to="/"   
-      className="text-2xl font-bold tracking-tight"
+    <NavLink
+      to="/"
+      className="text-2xl font-bold tracking-tight text-foreground transition-colors"
     >
-      CogniMart
+      <span className="text-primary">Cogni</span>Mart
     </NavLink>
-  )
+  );
 }
 
-export default Logo
+export default Logo;

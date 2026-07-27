@@ -27,15 +27,27 @@ function ActionButtons() {
   ];
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-1">
       {buttons.map((item) => {
         const Icon = item.icon;
 
         return (
-          <Button key={item.path} variant="ghost" asChild>
-            <NavLink to={item.path} className="flex items-center gap-2">
+          <Button
+            key={item.path}
+            variant="ghost"
+            asChild
+            className="px-3"
+          >
+            <NavLink
+              to={item.path}
+              className="flex items-center gap-2"
+            >
               <Icon className="h-5 w-5" />
-              <span>{item.label}</span>
+
+              {/* Show labels only on xl screens */}
+              <span className="hidden xl:inline text-sm font-medium">
+                {item.label}
+              </span>
             </NavLink>
           </Button>
         );

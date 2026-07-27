@@ -2,24 +2,44 @@ import Logo from "./Logo";
 import NavLinks from "./NavLinks";
 import SearchBar from "./SearchBar";
 import ActionButtons from "./ActionButtons";
+import MobileMenu from "./MobileMenu";
 
 function Navbar() {
   return (
-    <nav className="border-b">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4">
-        <Logo />
+    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-16 max-w-7xl items-center px-4 md:px-6">
 
-        <div className="hidden md:flex items-center gap-6">
-  <NavLinks />
-</div>
+        {/* Logo */}
+        <div className="shrink-0">
+          <Logo />
+        </div>
 
-        <div className="flex-1 max-w-lg">
+        {/* Desktop Navigation */}
+        <div className="ml-10 hidden lg:block">
+          <NavLinks />
+        </div>
+
+        {/* Desktop Search */}
+        <div className="mx-8 hidden flex-1 md:flex">
           <SearchBar />
         </div>
 
-        <ActionButtons />
+        {/* Desktop Action Buttons */}
+        <div className="hidden lg:flex">
+          <ActionButtons />
+        </div>
+
+        {/* Mobile Menu */}
+        <div className="ml-auto lg:hidden">
+          <MobileMenu />
+        </div>
       </div>
-    </nav>
+
+      {/* Mobile Search */}
+      <div className="border-t px-4 py-3 md:hidden">
+        <SearchBar />
+      </div>
+    </header>
   );
 }
 
