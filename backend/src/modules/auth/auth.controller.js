@@ -1,3 +1,4 @@
+import express from "express";
 import asyncHandler from "../../utils/asyncHandler.js";
 import {
   registerService,
@@ -46,3 +47,10 @@ export const logout = asyncHandler(async (req, res) => {
     message: "Logout successful",
   });
 });
+
+export const adminDashboard = (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: "Welcome Admin",
+  });
+};
