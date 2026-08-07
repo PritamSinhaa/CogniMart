@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Geist Variable", sans-serif;
+}
+
+:root {
+  --background: oklch(100% 0 0);
+  --foreground: oklch(14.5% 0 0);
+
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(14.5% 0 0);
+
+  --popover: oklch(100% 0 0);
+  --popover-foreground: oklch(14.5% 0 0);
+
+  --primary: oklch(59% 0.22 264);
+  --primary-foreground: oklch(98% 0 0);
+
+  --secondary: oklch(97% 0 0);
+  --secondary-foreground: oklch(20% 0 0);
+
+  --muted: oklch(97% 0 0);
+  --muted-foreground: oklch(55% 0 0);
+
+  --accent: oklch(97% 0 0);
+  --accent-foreground: oklch(20% 0 0);
+
+  --destructive: oklch(63% 0.25 25);
+
+  --border: oklch(92% 0 0);
+  --input: oklch(92% 0 0);
+  --ring: oklch(59% 0.22 264);
+
+  --radius: 0.8rem;
+}
+
+.dark {
+  --background: oklch(14% 0 0);
+  --foreground: oklch(98% 0 0);
+
+  --card: oklch(18% 0 0);
+  --card-foreground: oklch(98% 0 0);
+
+  --popover: oklch(18% 0 0);
+  --popover-foreground: oklch(98% 0 0);
+
+  --primary: oklch(70% 0.22 264);
+  --primary-foreground: oklch(14% 0 0);
+
+  --secondary: oklch(22% 0 0);
+  --secondary-foreground: oklch(98% 0 0);
+
+  --muted: oklch(22% 0 0);
+  --muted-foreground: oklch(72% 0 0);
+
+  --accent: oklch(22% 0 0);
+  --accent-foreground: oklch(98% 0 0);
+
+  --destructive: oklch(63% 0.25 25);
+
+  --border: oklch(26% 0 0);
+  --input: oklch(26% 0 0);
+  --ring: oklch(70% 0.22 264);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  img {
+    @apply select-none;
+  }
+}
