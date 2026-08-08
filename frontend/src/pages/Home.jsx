@@ -1,6 +1,8 @@
 import Hero from "@/components/home/hero/Hero";
 import Categories from "@/components/home/categories/Categories";
 import AIFeatures from "@/components/home/aiFeatures/AIFeatures";
+import { FeaturedProducts } from "@/components/home/featuredProducts";
+
 // import Categories from "@/components/home/categories/Categories";
 // import AIFeatures from "@/components/home/ai-features/AIFeatures";
 // import FeaturedProducts from "@/components/home/featured-products/FeaturedProducts";
@@ -15,6 +17,7 @@ const Home = () => {
       <Hero />
        <Categories />
        <AIFeatures />
+       <FeaturedProducts/>
       {/* <Categories />
       <AIFeatures />
       <FeaturedProducts />

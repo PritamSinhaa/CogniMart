@@ -1,0 +1,53 @@
+import {
+  Smartphone,
+  Headphones,
+  Laptop,
+  Watch,
+} from "lucide-react";
+
+export const products = [
+  {
+    id: 1,
+    name: "Smartphone Pro Max",
+    category: "Electronics",
+    price: 79999,
+    oldPrice: 89999,
+    rating: 4.8,
+    reviews: 324,
+    icon: Smartphone,
+    badge: "Best Seller",
+  },
+  {
+    id: 2,
+    name: "Wireless Noise Cancelling Headphones",
+    category: "Audio",
+    price: 8999,
+    oldPrice: 11999,
+    rating: 4.7,
+    reviews: 218,
+    icon: Headphones,
+    badge: "20% OFF",
+  },
+  {
+    id: 3,
+    name: "UltraBook AI Laptop",
+    category: "Computers",
+    price: 74999,
+    oldPrice: 84999,
+    rating: 4.9,
+    reviews: 156,
+    icon: Laptop,
+    badge: "AI Pick",
+  },
+  {
+    id: 4,
+    name: "Smart Watch Series X",
+    category: "Wearables",
+    price: 12999,
+    oldPrice: 15999,
+    rating: 4.6,
+    reviews: 189,
+    icon: Watch,
+    badge: "Trending",
+  },
+];
