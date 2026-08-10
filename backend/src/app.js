@@ -7,6 +7,7 @@ import errorMiddleware from "./middleware/error.middleware.js";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 import productRoutes from "./modules/product/product.routes.js";
+import categoryRoutes from "./modules/category/category.routes.js";
 
 console.log("App.js is loaded");
 
@@ -34,6 +35,7 @@ app.use((req, res, next) => {
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/products", productRoutes);
+app.use("/api/v1/categories", categoryRoutes);
 
 app.use(errorMiddleware);
 
