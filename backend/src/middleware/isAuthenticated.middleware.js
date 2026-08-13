@@ -21,12 +21,15 @@ const isAuthenticated = asyncHandler(async (req, res, next) => {
     throw new AppError("Invalid or expired token", 401);
   }
 
-  // 4. Find user from database
-  const user = await User.findById(decoded.id);
+  // 4. Find active user from database
+  const user = await User.findOne({
+    _id: decoded.id,
+    isActive: true,
+  });
 
-  // 5. Check if user still exists
+  // 5. Check if user still exists and is active
   if (!user) {
-    throw new AppError("User no longer exists", 401);
+    throw new AppError("User no longer exists or is inactive", 401);
   }
 
   // 6. Attach authenticated user to request object

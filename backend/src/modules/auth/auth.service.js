@@ -33,6 +33,7 @@ export const loginService = async ({ email, password }) => {
 
   const isPasswordMatched = await bcrypt.compare(password, user.password);
 
+
   if (!isPasswordMatched) {
     throw new AppError("Invalid email or password", 401);
   }

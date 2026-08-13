@@ -30,6 +30,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
 
     role: {
       type: String,
@@ -44,14 +49,16 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre("save", async function () {
-  // If password wasn't changed, don't hash again
   if (!this.isModified("password")) {
     return;
   }
 
-  this.password = await bcrypt.hash(this.password, 10);
-});
+  console.log("Password before hashing:", this.password);
 
+  this.password = await bcrypt.hash(this.password, 10);
+
+  console.log("Password hashed successfully");
+});
 const User = mongoose.model("User", userSchema);
 
 export default User;
