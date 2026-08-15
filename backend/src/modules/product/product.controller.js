@@ -18,11 +18,11 @@ export const createProductController = async (req, res) => {
 };
 
 export const getProductsController = async (req, res) => {
-  const products = await getProducts();
+  const result = await getProducts(req.query);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
-    data: products,
+    data: result,
   });
 };
 
