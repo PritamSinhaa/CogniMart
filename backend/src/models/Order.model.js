@@ -33,7 +33,7 @@ const orderItemSchema = new mongoose.Schema(
   },
   {
     _id: false,
-  }
+  },
 );
 
 const shippingAddressSchema = new mongoose.Schema(
@@ -80,7 +80,7 @@ const shippingAddressSchema = new mongoose.Schema(
   },
   {
     _id: false,
-  }
+  },
 );
 
 const orderSchema = new mongoose.Schema(
@@ -112,10 +112,19 @@ const orderSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Coupon discount amount
     discount: {
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    // Applied coupon code
+    couponCode: {
+      type: String,
+      default: null,
+      trim: true,
+      uppercase: true,
     },
 
     shippingFee: {
@@ -145,12 +154,7 @@ const orderSchema = new mongoose.Schema(
 
     paymentStatus: {
       type: String,
-      enum: [
-        "pending",
-        "paid",
-        "failed",
-        "refunded",
-      ],
+      enum: ["pending", "paid", "failed", "refunded"],
       default: "pending",
     },
 
@@ -159,10 +163,26 @@ const orderSchema = new mongoose.Schema(
       enum: ["cod", "online"],
       required: true,
     },
+
+    razorpayOrderId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+
+    razorpayPaymentId: {
+      type: String,
+      default: null,
+    },
+
+    razorpaySignature: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Order = mongoose.model("Order", orderSchema);

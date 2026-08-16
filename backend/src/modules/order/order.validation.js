@@ -1,27 +1,56 @@
 import { z } from "zod";
 
+
+// ==================================================
+// CREATE ORDER
+// ==================================================
+
 export const createOrderSchema = z.object({
   addressId: z
-    .string()
-    .regex(/^[a-f\d]{24}$/i, "Invalid address ID"),
+    .string({
+      error: "Address ID is required",
+    })
+    .min(1, "Address ID is required"),
 
-  paymentMethod: z.enum(["cod", "online"]),
+  paymentMethod: z.enum(
+    ["cod", "online"],
+    {
+      error:
+        "Payment method must be cod or online",
+    }
+  ),
+
+  couponCode: z
+    .string()
+    .trim()
+    .min(
+      3,
+      "Coupon code must be at least 3 characters"
+    )
+    .max(
+      30,
+      "Coupon code cannot exceed 30 characters"
+    )
+    .optional(),
 });
 
-export const orderIdSchema = z.object({
-  id: z
-    .string()
-    .regex(/^[a-f\d]{24}$/i, "Invalid order ID"),
-});
-
+// ==================================================
+// UPDATE ORDER STATUS
+// ==================================================
 
 export const updateOrderStatusSchema = z.object({
-  status: z.enum([
-    "pending",
-    "confirmed",
-    "processing",
-    "shipped",
-    "delivered",
-    "cancelled",
-  ]),
+  status: z.enum(
+    [
+      "pending",
+      "confirmed",
+      "processing",
+      "shipped",
+      "delivered",
+      "cancelled",
+    ],
+    {
+      error:
+        "Invalid order status",
+    }
+  ),
 });

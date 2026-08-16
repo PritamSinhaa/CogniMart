@@ -14,7 +14,6 @@ const productSchema = new mongoose.Schema(
       maxlength: [120, "Product name cannot exceed 120 characters"],
     },
 
-
     // ==========================================
     // SLUG
     // ==========================================
@@ -28,7 +27,6 @@ const productSchema = new mongoose.Schema(
       index: true,
     },
 
-
     // ==========================================
     // DESCRIPTION
     // ==========================================
@@ -40,7 +38,6 @@ const productSchema = new mongoose.Schema(
       minlength: [10, "Description must be at least 10 characters"],
     },
 
-
     // ==========================================
     // PRICE
     // ==========================================
@@ -50,7 +47,6 @@ const productSchema = new mongoose.Schema(
       required: [true, "Product price is required"],
       min: [0, "Price cannot be negative"],
     },
-
 
     // ==========================================
     // DISCOUNT
@@ -63,7 +59,6 @@ const productSchema = new mongoose.Schema(
       max: [100, "Discount cannot exceed 100%"],
     },
 
-
     // ==========================================
     // CATEGORY
     // ==========================================
@@ -74,7 +69,6 @@ const productSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-
 
     // ==========================================
     // BRAND
@@ -87,7 +81,6 @@ const productSchema = new mongoose.Schema(
       index: true,
     },
 
-
     // ==========================================
     // IMAGES
     // ==========================================
@@ -96,7 +89,6 @@ const productSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-
 
     // ==========================================
     // STOCK
@@ -108,7 +100,6 @@ const productSchema = new mongoose.Schema(
       min: [0, "Stock cannot be negative"],
       default: 0,
     },
-
 
     // ==========================================
     // SKU
@@ -122,7 +113,6 @@ const productSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-
 
     // ==========================================
     // RATINGS
@@ -143,7 +133,6 @@ const productSchema = new mongoose.Schema(
       },
     },
 
-
     // ==========================================
     // SPECIFICATIONS
     // ==========================================
@@ -153,7 +142,6 @@ const productSchema = new mongoose.Schema(
       of: String,
       default: {},
     },
-
 
     // ==========================================
     // ACTIVE STATUS
@@ -168,23 +156,16 @@ const productSchema = new mongoose.Schema(
 
   {
     timestamps: true,
-  }
+  },
 );
-
 
 // ==================================================
 // VIRTUAL: DISCOUNTED PRICE
 // ==================================================
 
 productSchema.virtual("discountedPrice").get(function () {
-  return Number(
-    (
-      this.price -
-      (this.price * this.discount) / 100
-    ).toFixed(2)
-  );
+  return Number((this.price - (this.price * this.discount) / 100).toFixed(2));
 });
-
 
 // ==================================================
 // INCLUDE VIRTUALS IN JSON RESPONSE
@@ -194,7 +175,6 @@ productSchema.set("toJSON", {
   virtuals: true,
 });
 
-
 // ==================================================
 // INCLUDE VIRTUALS IN OBJECT
 // ==================================================
@@ -203,15 +183,10 @@ productSchema.set("toObject", {
   virtuals: true,
 });
 
-
 // ==================================================
 // CREATE MODEL
 // ==================================================
 
-const Product = mongoose.model(
-  "Product",
-  productSchema
-);
-
+const Product = mongoose.model("Product", productSchema);
 
 export default Product;

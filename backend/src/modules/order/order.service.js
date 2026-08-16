@@ -4,9 +4,14 @@ import Order from "../../models/Order.model.js";
 import Cart from "../../models/Cart.model.js";
 import Product from "../../models/Product.model.js";
 import Address from "../../models/Address.model.js";
+import Coupon from "../../models/Coupon.model.js";
 
 import AppError from "../../utils/AppError.js";
 import calculateDiscountedPrice from "../../utils/calculateDiscountedPrice.js";
+
+import {
+  applyCouponService,
+} from "../coupon/coupon.service.js";
 
 
 // ==================================================
@@ -16,7 +21,8 @@ import calculateDiscountedPrice from "../../utils/calculateDiscountedPrice.js";
 export const createOrderService = async (
   userId,
   addressId,
-  paymentMethod
+  paymentMethod,
+  couponCode = null
 ) => {
   const session = await mongoose.startSession();
 
@@ -81,7 +87,11 @@ export const createOrderService = async (
         );
       }
 
-      // Product must be active
+
+      // ========================================
+      // PRODUCT MUST BE ACTIVE
+      // ========================================
+
       if (!product.isActive) {
         throw new AppError(
           `${product.name} is no longer available`,
@@ -89,7 +99,11 @@ export const createOrderService = async (
         );
       }
 
-      // Check stock
+
+      // ========================================
+      // CHECK STOCK
+      // ========================================
+
       if (item.quantity > product.stock) {
         throw new AppError(
           `Only ${product.stock} units of ${product.name} are available`,
@@ -99,7 +113,7 @@ export const createOrderService = async (
 
 
       // ========================================
-      // CALCULATE FINAL PRICE
+      // CALCULATE FINAL PRODUCT PRICE
       // ========================================
 
       const finalPrice =
@@ -139,14 +153,32 @@ export const createOrderService = async (
     // ==========================================
 
     const shippingFee =
-      subtotal >= 1000 ? 0 : 50;
+      subtotal >= 1000
+        ? 0
+        : 50;
 
 
     // ==========================================
-    // ORDER DISCOUNT
+    // COUPON DISCOUNT
     // ==========================================
 
-    const discount = 0;
+    let discount = 0;
+
+    let appliedCoupon = null;
+
+    if (couponCode) {
+      const couponResult =
+        await applyCouponService(
+          couponCode,
+          subtotal
+        );
+
+      discount =
+        couponResult.discount;
+
+      appliedCoupon =
+        couponResult.coupon;
+    }
 
 
     // ==========================================
@@ -160,18 +192,45 @@ export const createOrderService = async (
 
 
     // ==========================================
+    // SAFETY CHECK
+    // ==========================================
+
+    if (total < 0) {
+      throw new AppError(
+        "Invalid order total",
+        400
+      );
+    }
+
+
+    // ==========================================
     // SNAPSHOT SHIPPING ADDRESS
     // ==========================================
 
     const shippingAddress = {
-      fullName: address.fullName,
-      phone: address.phone,
-      addressLine1: address.addressLine1,
-      addressLine2: address.addressLine2 || "",
-      city: address.city,
-      state: address.state,
-      postalCode: address.postalCode,
-      country: address.country,
+      fullName:
+        address.fullName,
+
+      phone:
+        address.phone,
+
+      addressLine1:
+        address.addressLine1,
+
+      addressLine2:
+        address.addressLine2 || "",
+
+      city:
+        address.city,
+
+      state:
+        address.state,
+
+      postalCode:
+        address.postalCode,
+
+      country:
+        address.country,
     };
 
 
@@ -179,34 +238,40 @@ export const createOrderService = async (
     // CREATE ORDER
     // ==========================================
 
-    const [order] = await Order.create(
-      [
+    const [order] =
+      await Order.create(
+        [
+          {
+            user: userId,
+
+            items: orderItems,
+
+            shippingAddress,
+
+            subtotal,
+
+            discount,
+
+            couponCode:
+              appliedCoupon?.code || null,
+
+            shippingFee,
+
+            total,
+
+            orderStatus:
+              "pending",
+
+            paymentStatus:
+              "pending",
+
+            paymentMethod,
+          },
+        ],
         {
-          user: userId,
-
-          items: orderItems,
-
-          shippingAddress,
-
-          subtotal,
-
-          discount,
-
-          shippingFee,
-
-          total,
-
-          orderStatus: "pending",
-
-          paymentStatus: "pending",
-
-          paymentMethod,
-        },
-      ],
-      {
-        session,
-      }
-    );
+          session,
+        }
+      );
 
 
     // ==========================================
@@ -214,21 +279,27 @@ export const createOrderService = async (
     // ==========================================
 
     for (const item of cart.items) {
-      const product = item.product;
+      const product =
+        item.product;
 
       const updatedProduct =
         await Product.findOneAndUpdate(
           {
             _id: product._id,
+
             stock: {
-              $gte: item.quantity,
+              $gte:
+                item.quantity,
             },
           },
+
           {
             $inc: {
-              stock: -item.quantity,
+              stock:
+                -item.quantity,
             },
           },
+
           {
             new: true,
             session,
@@ -238,6 +309,56 @@ export const createOrderService = async (
       if (!updatedProduct) {
         throw new AppError(
           `Unable to update stock for ${product.name}`,
+          400
+        );
+      }
+    }
+
+
+    // ==========================================
+    // INCREMENT COUPON USAGE
+    // ==========================================
+
+    if (appliedCoupon) {
+      const updatedCoupon =
+        await Coupon.findOneAndUpdate(
+          {
+            _id:
+              appliedCoupon._id,
+
+            isActive: true,
+
+            $or: [
+              {
+                usageLimit: null,
+              },
+
+              {
+                $expr: {
+                  $lt: [
+                    "$usedCount",
+                    "$usageLimit",
+                  ],
+                },
+              },
+            ],
+          },
+
+          {
+            $inc: {
+              usedCount: 1,
+            },
+          },
+
+          {
+            new: true,
+            session,
+          }
+        );
+
+      if (!updatedCoupon) {
+        throw new AppError(
+          "Coupon usage limit has been reached",
           400
         );
       }
@@ -289,13 +410,14 @@ export const createOrderService = async (
 export const getMyOrdersService = async (
   userId
 ) => {
-  const orders = await Order.find({
-    user: userId,
-  })
-    .sort({
-      createdAt: -1,
+  const orders =
+    await Order.find({
+      user: userId,
     })
-    .lean();
+      .sort({
+        createdAt: -1,
+      })
+      .lean();
 
   return orders;
 };
@@ -309,15 +431,16 @@ export const getOrderByIdService = async (
   orderId,
   userId
 ) => {
-  const order = await Order.findOne({
-    _id: orderId,
-    user: userId,
-  })
-    .populate(
-      "items.product",
-      "name images slug"
-    )
-    .lean();
+  const order =
+    await Order.findOne({
+      _id: orderId,
+      user: userId,
+    })
+      .populate(
+        "items.product",
+        "name images slug"
+      )
+      .lean();
 
   if (!order) {
     throw new AppError(
@@ -338,7 +461,8 @@ export const cancelOrderService = async (
   orderId,
   userId
 ) => {
-  const session = await mongoose.startSession();
+  const session =
+    await mongoose.startSession();
 
   try {
     session.startTransaction();
@@ -348,10 +472,11 @@ export const cancelOrderService = async (
     // FIND ORDER
     // ==========================================
 
-    const order = await Order.findOne({
-      _id: orderId,
-      user: userId,
-    }).session(session);
+    const order =
+      await Order.findOne({
+        _id: orderId,
+        user: userId,
+      }).session(session);
 
     if (!order) {
       throw new AppError(
@@ -370,7 +495,9 @@ export const cancelOrderService = async (
         "shipped",
         "delivered",
         "cancelled",
-      ].includes(order.orderStatus)
+      ].includes(
+        order.orderStatus
+      )
     ) {
       throw new AppError(
         `Order cannot be cancelled because it is already ${order.orderStatus}`,
@@ -384,14 +511,16 @@ export const cancelOrderService = async (
     // ==========================================
 
     for (const item of order.items) {
-
       await Product.findByIdAndUpdate(
         item.product,
+
         {
           $inc: {
-            stock: item.quantity,
+            stock:
+              item.quantity,
           },
         },
+
         {
           session,
         }
@@ -403,7 +532,8 @@ export const cancelOrderService = async (
     // UPDATE ORDER
     // ==========================================
 
-    order.orderStatus = "cancelled";
+    order.orderStatus =
+      "cancelled";
 
     await order.save({
       session,
@@ -436,125 +566,135 @@ export const cancelOrderService = async (
 // ADMIN - GET ALL ORDERS
 // ==================================================
 
-export const getAllOrdersService = async () => {
+export const getAllOrdersService =
+  async () => {
 
-  const orders = await Order.find()
-    .sort({
-      createdAt: -1,
-    })
-    .populate(
-      "user",
-      "name email"
-    )
-    .populate(
-      "items.product",
-      "name images slug"
-    )
-    .lean();
+    const orders =
+      await Order.find()
+        .sort({
+          createdAt: -1,
+        })
+        .populate(
+          "user",
+          "name email"
+        )
+        .populate(
+          "items.product",
+          "name images slug"
+        )
+        .lean();
 
-  return orders;
-};
+    return orders;
+  };
 
 
 // ==================================================
 // ADMIN - UPDATE ORDER STATUS
 // ==================================================
 
-export const updateOrderStatusService = async (
-  orderId,
-  status
-) => {
+export const updateOrderStatusService =
+  async (
+    orderId,
+    status
+  ) => {
 
-  const order =
-    await Order.findById(orderId);
+    const order =
+      await Order.findById(
+        orderId
+      );
 
-  if (!order) {
-    throw new AppError(
-      "Order not found",
-      404
-    );
-  }
-
-
-  // ==========================================
-  // CANNOT UPDATE CANCELLED ORDER
-  // ==========================================
-
-  if (
-    order.orderStatus === "cancelled"
-  ) {
-    throw new AppError(
-      "Cancelled orders cannot be updated",
-      400
-    );
-  }
+    if (!order) {
+      throw new AppError(
+        "Order not found",
+        404
+      );
+    }
 
 
-  // ==========================================
-  // CANNOT UPDATE DELIVERED ORDER
-  // ==========================================
+    // ==========================================
+    // CANNOT UPDATE CANCELLED ORDER
+    // ==========================================
 
-  if (
-    order.orderStatus === "delivered"
-  ) {
-    throw new AppError(
-      "Delivered orders cannot be updated",
-      400
-    );
-  }
+    if (
+      order.orderStatus ===
+      "cancelled"
+    ) {
+      throw new AppError(
+        "Cancelled orders cannot be updated",
+        400
+      );
+    }
 
 
-  // ==========================================
-  // ALLOWED STATUS TRANSITIONS
-  // ==========================================
+    // ==========================================
+    // CANNOT UPDATE DELIVERED ORDER
+    // ==========================================
 
-  const allowedTransitions = {
+    if (
+      order.orderStatus ===
+      "delivered"
+    ) {
+      throw new AppError(
+        "Delivered orders cannot be updated",
+        400
+      );
+    }
 
-    pending: [
-      "confirmed",
-      "cancelled",
-    ],
 
-    confirmed: [
-      "processing",
-      "cancelled",
-    ],
+    // ==========================================
+    // ALLOWED STATUS TRANSITIONS
+    // ==========================================
 
-    processing: [
-      "shipped",
-      "cancelled",
-    ],
+    const allowedTransitions = {
 
-    shipped: [
-      "delivered",
-    ],
+      pending: [
+        "confirmed",
+        "cancelled",
+      ],
+
+      confirmed: [
+        "processing",
+        "cancelled",
+      ],
+
+      processing: [
+        "shipped",
+        "cancelled",
+      ],
+
+      shipped: [
+        "delivered",
+      ],
+    };
+
+
+    const allowedStatuses =
+      allowedTransitions[
+        order.orderStatus
+      ];
+
+
+    if (
+      !allowedStatuses ||
+      !allowedStatuses.includes(
+        status
+      )
+    ) {
+      throw new AppError(
+        `Cannot change order status from ${order.orderStatus} to ${status}`,
+        400
+      );
+    }
+
+
+    // ==========================================
+    // UPDATE
+    // ==========================================
+
+    order.orderStatus =
+      status;
+
+    await order.save();
+
+    return order;
   };
-
-
-  const allowedStatuses =
-    allowedTransitions[
-      order.orderStatus
-    ];
-
-
-  if (
-    !allowedStatuses ||
-    !allowedStatuses.includes(status)
-  ) {
-    throw new AppError(
-      `Cannot change order status from ${order.orderStatus} to ${status}`,
-      400
-    );
-  }
-
-
-  // ==========================================
-  // UPDATE
-  // ==========================================
-
-  order.orderStatus = status;
-
-  await order.save();
-
-  return order;
-};

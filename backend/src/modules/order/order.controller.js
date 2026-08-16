@@ -8,15 +8,22 @@ import {
 } from "./order.service.js";
 
 
+// ==================================================
 // CREATE ORDER
+// ==================================================
 
 export const createOrder = async (req, res) => {
-  const { addressId, paymentMethod } = req.body;
+  const {
+    addressId,
+    paymentMethod,
+    couponCode,
+  } = req.body;
 
   const order = await createOrderService(
     req.user._id,
     addressId,
-    paymentMethod
+    paymentMethod,
+    couponCode
   );
 
   return res.status(201).json({
@@ -29,9 +36,9 @@ export const createOrder = async (req, res) => {
 };
 
 
-// =====================================================
+// ==================================================
 // GET MY ORDERS
-// =====================================================
+// ==================================================
 
 export const getMyOrders = async (req, res) => {
   const orders = await getMyOrdersService(
@@ -46,9 +53,16 @@ export const getMyOrders = async (req, res) => {
   });
 };
 
+
+// ==================================================
+// GET ORDER BY ID
+// ==================================================
+
 export const getOrderById = async (req, res) => {
+  const { orderId } = req.params;
+
   const order = await getOrderByIdService(
-    req.params.id,
+    orderId,
     req.user._id
   );
 
@@ -60,9 +74,16 @@ export const getOrderById = async (req, res) => {
   });
 };
 
+
+// ==================================================
+// CANCEL ORDER
+// ==================================================
+
 export const cancelOrder = async (req, res) => {
+  const { orderId } = req.params;
+
   const order = await cancelOrderService(
-    req.params.id,
+    orderId,
     req.user._id
   );
 
@@ -75,6 +96,11 @@ export const cancelOrder = async (req, res) => {
   });
 };
 
+
+// ==================================================
+// ADMIN - GET ALL ORDERS
+// ==================================================
+
 export const getAllOrders = async (req, res) => {
   const orders = await getAllOrdersService();
 
@@ -86,15 +112,28 @@ export const getAllOrders = async (req, res) => {
   });
 };
 
-export const updateOrderStatus = async (req, res) => {
-  const order = await updateOrderStatusService(
-    req.params.id,
-    req.body.status
-  );
+
+// ==================================================
+// ADMIN - UPDATE ORDER STATUS
+// ==================================================
+
+export const updateOrderStatus = async (
+  req,
+  res
+) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+
+  const order =
+    await updateOrderStatusService(
+      orderId,
+      status
+    );
 
   return res.status(200).json({
     success: true,
-    message: "Order status updated successfully",
+    message:
+      "Order status updated successfully",
     data: {
       order,
     },

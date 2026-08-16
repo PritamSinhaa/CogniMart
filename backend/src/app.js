@@ -14,6 +14,8 @@ import addressRoutes from "./modules/address/address.routes.js";
 import orderRoutes from "./modules/order/order.routes.js";
 import reviewRoutes from "./modules/review/review.routes.js";
 import wishlistRoutes from "./modules/wishlist/wishlist.routes.js";
+import couponRoutes from "./modules/coupon/coupon.routes.js";
+import paymentRoutes from "./modules/payment/payment.routes.js";
 
 console.log("App.js is loaded");
 
@@ -47,6 +49,8 @@ app.use("/api/v1/addresses", addressRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1", reviewRoutes);
 app.use("/api/v1", wishlistRoutes);
+app.use("/api/v1", couponRoutes);
+app.use("/api/v1/payments", paymentRoutes);
 
 app.use(errorMiddleware);
 
