@@ -1,40 +1,49 @@
-import Container from "@/components/common/Container";
-import { features } from "./featuresData";
-import FeatureCard from "./FeatureCard";
+import {
+  Bot,
+  Search,
+  Sparkles,
+  Tags,
+} from "lucide-react";
 
-const AIFeatures = () => {
+import AIFeatureCard from "./AIFeatureCard";
+
+const features = [
+  {
+    icon: Bot,
+    title: "AI Recommendations",
+    description: "Personalized for you",
+  },
+  {
+    icon: Search,
+    title: "Smart Search",
+    description: "Find exactly what you need",
+  },
+  {
+    icon: Sparkles,
+    title: "Review Analysis",
+    description: "AI-powered product insights",
+  },
+  {
+    icon: Tags,
+    title: "Price Comparison",
+    description: "Get the best deals",
+  },
+];
+
+export default function AIFeatures() {
   return (
-    <section className="bg-gray-50 py-24">
-      <Container>
-        <div className="mx-auto mb-16 max-w-3xl text-center">
-
-          <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-600">
-            AI Powered Shopping
-          </span>
-
-          <h2 className="mt-5 text-4xl font-bold lg:text-5xl">
-            Why Shop With CogniMart?
-          </h2>
-
-          <p className="mt-5 text-lg leading-8 text-gray-500">
-            Experience the future of online shopping with artificial
-            intelligence helping you discover better products, save
-            money, and make smarter purchasing decisions.
-          </p>
-
-        </div>
-
-        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {features.map((feature) => (
-            <FeatureCard
-              key={feature.id}
-              feature={feature}
+    <section className="bg-white py-10 dark:bg-slate-950">
+      <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12 xl:px-16">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature, index) => (
+            <AIFeatureCard
+              key={feature.title}
+              {...feature}
+              index={index}
             />
           ))}
         </div>
-      </Container>
+      </div>
     </section>
   );
-};
-
-export default AIFeatures;
+}

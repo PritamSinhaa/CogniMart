@@ -1,11 +1,20 @@
-import ThemeProvider from "./app/providers/ThemeProvider";
-import AppRoutes from "./routes/AppRoutes";
+import Hero from "./components/home/hero/Hero";
+import AIFeatures from "./components/home/AIFeatures/AIFeatures";
+import Categories from "./components/home/categories/Categories";
+import TrendingProducts from "./components/home/trendingProducts/TrendingProducts";
+import AIAssistantBanner from "./components/home/AIBanner/AIAssistantBanner";
 
 function App() {
   return (
-    <ThemeProvider>
-      <AppRoutes />
-    </ThemeProvider>
+    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-white">
+      <main>
+        <Hero />
+        <AIFeatures />
+        <Categories />
+        <TrendingProducts />
+        <AIAssistantBanner />
+      </main>
+    </div>
   );
 }
 
