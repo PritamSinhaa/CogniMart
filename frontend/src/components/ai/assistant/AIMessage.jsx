@@ -4,6 +4,7 @@ import AIIcon from "../shared/AIIcon";
 import AIProductResults from "./AIProductResults";
 import AIProductComparison from "./AIProductComparison";
 import AIReviewSummary from "../reviews/AIReviewSummary";
+import AIMessageActions from "./AIMessageActions";
 
 export default function AIMessage({
   role = "assistant",
@@ -11,20 +12,21 @@ export default function AIMessage({
   content,
   products = [],
   onAddToCart,
-
-  // Review summary props
+  onToggleWishlist,
   rating,
   totalReviews,
   summary,
   positivePoints = [],
   negativePoints = [],
   verdict,
+  onHelpful,
+  onNotHelpful,
 }) {
   const isUser = role === "user";
 
   /*
   |--------------------------------------------------------------------------
-  | User message
+  | USER MESSAGE
   |--------------------------------------------------------------------------
   */
 
@@ -40,6 +42,8 @@ export default function AIMessage({
             sm:max-w-[75%]
           "
         >
+          {/* User message */}
+
           <div
             className="
               rounded-2xl
@@ -56,6 +60,8 @@ export default function AIMessage({
             {content}
           </div>
 
+          {/* User avatar */}
+
           <div
             className="
               flex
@@ -71,7 +77,7 @@ export default function AIMessage({
               dark:text-slate-300
             "
           >
-            <User size={15} />
+            <User size={15} aria-hidden="true" />
           </div>
         </div>
       </div>
@@ -80,13 +86,15 @@ export default function AIMessage({
 
   /*
   |--------------------------------------------------------------------------
-  | Assistant message
+  | ASSISTANT MESSAGE
   |--------------------------------------------------------------------------
   */
 
   return (
     <div className="flex items-start gap-3">
-      {/* AI Avatar */}
+      {/* ============================================================
+          AI AVATAR
+      ============================================================ */}
 
       <div
         className="
@@ -104,57 +112,78 @@ export default function AIMessage({
         <AIIcon size={17} />
       </div>
 
-      {/* AI Content */}
+      {/* ============================================================
+          CONTENT
+      ============================================================ */}
 
       <div className="min-w-0 max-w-full flex-1">
-        {/* ------------------------------------------------------------ */}
-        {/* Text response                                                */}
-        {/* ------------------------------------------------------------ */}
+        {/* ==========================================================
+            TEXT RESPONSE
+        ========================================================== */}
 
         {content && (
-          <div
-            className="
-              w-fit
-              max-w-[95%]
-              rounded-2xl
-              rounded-tl-md
-              border
-              border-slate-200
-              bg-white
-              px-4
-              py-3
-              text-sm
-              leading-6
-              text-slate-700
-              shadow-sm
-              dark:border-slate-800
-              dark:bg-slate-900
-              dark:text-slate-300
-            "
-          >
-            {content}
+          <>
+            <div
+              className="
+                w-fit
+                max-w-[95%]
+                rounded-2xl
+                rounded-tl-md
+                border
+                border-slate-200
+                bg-white
+                px-4
+                py-3
+                text-sm
+                leading-6
+                text-slate-700
+                shadow-sm
+                dark:border-slate-800
+                dark:bg-slate-900
+                dark:text-slate-300
+              "
+            >
+              {content}
+            </div>
+
+            {/* Message actions */}
+
+            <AIMessageActions
+              content={content}
+              onHelpful={onHelpful}
+              onNotHelpful={onNotHelpful}
+            />
+          </>
+        )}
+
+        {/* ==========================================================
+            PRODUCT RESULTS
+        ========================================================== */}
+
+        {type === "products" && (
+          <AIProductResults
+            products={products}
+            onAddToCart={onAddToCart}
+            onToggleWishlist={onToggleWishlist}
+          />
+        )}
+
+        {/* ==========================================================
+            PRODUCT COMPARISON
+        ========================================================== */}
+
+        {type === "comparison" && (
+          <div className="mt-3 w-full max-w-4xl">
+            <AIProductComparison
+              products={products}
+              onAddToCart={onAddToCart}
+            />
           </div>
         )}
 
-        {/* ------------------------------------------------------------ */}
-        {/* Product recommendations                                       */}
-        {/* ------------------------------------------------------------ */}
-
-        {type === "products" && (
-          <AIProductResults products={products} onAddToCart={onAddToCart} />
-        )}
-
-        {/* ------------------------------------------------------------ */}
-        {/* Product comparison                                            */}
-        {/* ------------------------------------------------------------ */}
-
-        {type === "comparison" && (
-          <AIProductComparison products={products} onAddToCart={onAddToCart} />
-        )}
-
-        {/* ------------------------------------------------------------ */}
-        {/* AI review summary                                             */}
-        {/* ------------------------------------------------------------ */}
+        {/* ==========================================================
+            REVIEW SUMMARY
+        ========================================================== */}
 
         {type === "review-summary" && (
           <div className="mt-3 w-full max-w-3xl">

@@ -1,11 +1,32 @@
+import { useEffect, useRef } from "react";
+
 import AIMessage from "./AIMessage";
 
 export default function AIConversation({
   messages = [],
   onAddToCart,
+  onToggleWishlist,
 }) {
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    if (!messages.length) {
+      return;
+    }
+
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [messages]);
+
+  if (!messages.length) {
+    return null;
+  }
+
   return (
     <section
+      aria-label="AI conversation"
       className="
         mx-auto
         w-full
@@ -25,6 +46,7 @@ export default function AIConversation({
             content={message.content}
             products={message.products}
             onAddToCart={onAddToCart}
+            onToggleWishlist={onToggleWishlist}
             rating={message.rating}
             totalReviews={message.totalReviews}
             summary={message.summary}
@@ -33,6 +55,14 @@ export default function AIConversation({
             verdict={message.verdict}
           />
         ))}
+
+        {/* Auto-scroll target */}
+
+        <div
+          ref={bottomRef}
+          aria-hidden="true"
+          className="h-px"
+        />
       </div>
     </section>
   );

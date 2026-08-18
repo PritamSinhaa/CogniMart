@@ -8,7 +8,7 @@ import AIThinking from "@/components/ai/shared/AIThinking";
 
 /*
 |--------------------------------------------------------------------------
-| Mock product data
+| Mock recommendation products
 |--------------------------------------------------------------------------
 */
 
@@ -50,7 +50,7 @@ const mockProducts = [
 
 /*
 |--------------------------------------------------------------------------
-| Mock comparison data
+| Mock comparison products
 |--------------------------------------------------------------------------
 */
 
@@ -94,22 +94,9 @@ const mockComparisonProducts = [
   },
 ];
 
-/*
-|--------------------------------------------------------------------------
-| AI Assistant Page
-|--------------------------------------------------------------------------
-*/
-
 export default function AIAssistant() {
   const [messages, setMessages] = useState([]);
-
   const [isThinking, setIsThinking] = useState(false);
-
-  /*
-  |--------------------------------------------------------------------------
-  | Conversation state
-  |--------------------------------------------------------------------------
-  */
 
   const hasConversation = messages.length > 0;
 
@@ -120,17 +107,11 @@ export default function AIAssistant() {
   */
 
   const handleSubmit = (message) => {
-    const trimmedMessage = message.trim();
+    const trimmedMessage = message?.trim();
 
     if (!trimmedMessage || isThinking) {
       return;
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Add user message
-    |--------------------------------------------------------------------------
-    */
 
     const userMessage = {
       id: crypto.randomUUID(),
@@ -142,12 +123,6 @@ export default function AIAssistant() {
     setMessages((currentMessages) => [...currentMessages, userMessage]);
 
     setIsThinking(true);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Temporary mock AI
-    |--------------------------------------------------------------------------
-    */
 
     window.setTimeout(() => {
       const lowerMessage = trimmedMessage.toLowerCase();
@@ -305,19 +280,30 @@ export default function AIAssistant() {
 
   /*
   |--------------------------------------------------------------------------
-  | Add to cart
+  | Cart
   |--------------------------------------------------------------------------
   */
 
   const handleAddToCart = (product) => {
     console.log("Add to cart:", product);
+
+    // API/cart integration will be added later.
   };
 
   /*
   |--------------------------------------------------------------------------
-  | Render
+  | Wishlist
   |--------------------------------------------------------------------------
   */
+
+  const handleToggleWishlist = (product, added) => {
+    console.log(
+      added ? "Added to wishlist:" : "Removed from wishlist:",
+      product,
+    );
+
+    // API/wishlist integration will be added later.
+  };
 
   return (
     <div
@@ -329,15 +315,15 @@ export default function AIAssistant() {
         dark:bg-slate-950
       "
     >
-      {/* ================================================================ */}
-      {/* Header                                                           */}
-      {/* ================================================================ */}
+      {/* ============================================================
+          AI HEADER
+      ============================================================ */}
 
       <AIAssistantHeader onNewChat={handleNewChat} />
 
-      {/* ================================================================ */}
-      {/* Main                                                             */}
-      {/* ================================================================ */}
+      {/* ============================================================
+          MAIN CONTENT
+      ============================================================ */}
 
       <main className="flex min-h-0 flex-1 flex-col">
         {!hasConversation ? (
@@ -346,9 +332,13 @@ export default function AIAssistant() {
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
-            <AIConversation messages={messages} onAddToCart={handleAddToCart} />
+            <AIConversation
+              messages={messages}
+              onAddToCart={handleAddToCart}
+              onToggleWishlist={handleToggleWishlist}
+            />
 
-            {/* AI thinking */}
+            {/* Thinking */}
 
             {isThinking && (
               <div
@@ -369,15 +359,15 @@ export default function AIAssistant() {
         )}
       </main>
 
-      {/* ================================================================ */}
-      {/* Chat input                                                       */}
-      {/* ================================================================ */}
+      {/* ============================================================
+          CHAT INPUT
+      ============================================================ */}
 
       <div
         className="
           sticky
           bottom-0
-          z-10
+          z-20
           border-t
           border-slate-200/80
           bg-slate-50/90

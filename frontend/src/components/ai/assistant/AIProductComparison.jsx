@@ -1,776 +1,495 @@
-import {
-  Check,
-  ShoppingCart,
-  Star,
-  Sparkles,
-  ExternalLink,
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Check, ShoppingCart, Sparkles, Star, Trophy } from "lucide-react";
 
-export default function AIProductComparison({ products = [], onAddToCart }) {
-  const navigate = useNavigate();
-
-  if (!products.length) {
-    return null;
+function formatPrice(price) {
+  if (typeof price !== "number") {
+    return price;
   }
 
-  const handleViewProduct = (product) => {
-    if (!product?.id) return;
+  return `₹${price.toLocaleString("en-IN")}`;
+}
 
-    navigate(`/products/${product.id}`);
-  };
+function Rating({ rating = 0, reviewCount }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-0.5">
+        <Star size={13} className="fill-emerald-500 text-emerald-500" />
 
-  const formatPrice = (price) => {
-    if (typeof price !== "number") {
-      return "—";
-    }
+        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+          {rating}
+        </span>
+      </div>
 
-    return `₹${price.toLocaleString("en-IN")}`;
-  };
+      {reviewCount !== undefined && (
+        <span className="text-[10px] text-slate-400">
+          ({Number(reviewCount).toLocaleString("en-IN")})
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ComparisonCard({ product, onAddToCart }) {
+  const {
+    name,
+    image,
+    price,
+    originalPrice,
+    rating,
+    reviewCount,
+    bestFor,
+    aiVerdict,
+    recommended = false,
+  } = product;
 
   return (
-    <section
-      className="
-        mt-3
-        w-full
+    <article
+      className={`
+        relative
         overflow-hidden
         rounded-2xl
         border
-        border-slate-200
         bg-white
         shadow-sm
-        dark:border-slate-800
         dark:bg-slate-900
-      "
+        ${
+          recommended
+            ? `
+              border-emerald-500
+              shadow-emerald-100
+              dark:border-emerald-500
+              dark:shadow-none
+            `
+            : `
+              border-slate-200
+              dark:border-slate-800
+            `
+        }
+      `}
     >
-      {/* ============================================================ */}
-      {/* Header                                                       */}
-      {/* ============================================================ */}
+      {/* ============================================================
+          AI RECOMMENDED BADGE
+      ============================================================ */}
+
+      {recommended && (
+        <div
+          className="
+            flex
+            items-center
+            justify-center
+            gap-1.5
+            bg-emerald-600
+            px-3
+            py-2
+            text-[10px]
+            font-bold
+            text-white
+          "
+        >
+          <Trophy size={12} />
+          AI RECOMMENDED
+        </div>
+      )}
+
+      {/* ============================================================
+          IMAGE
+      ============================================================ */}
 
       <div
         className="
-          border-b
-          border-slate-200
-          p-4
-          sm:p-5
-          dark:border-slate-800
+          relative
+          aspect-square
+          overflow-hidden
+          bg-slate-100
+          dark:bg-slate-800
         "
       >
-        <div className="flex items-start gap-3">
-          <div
+        <img
+          src={image}
+          alt={name}
+          loading="lazy"
+          className="
+            h-full
+            w-full
+            object-cover
+          "
+        />
+      </div>
+
+      {/* ============================================================
+          CONTENT
+      ============================================================ */}
+
+      <div className="p-4">
+        <h3
+          className="
+            min-h-10
+            text-sm
+            font-bold
+            leading-5
+            text-slate-900
+            dark:text-white
+          "
+        >
+          {name}
+        </h3>
+
+        {/* Rating */}
+
+        <div className="mt-2">
+          <Rating rating={rating} reviewCount={reviewCount} />
+        </div>
+
+        {/* Price */}
+
+        <div className="mt-3 flex flex-wrap items-baseline gap-2">
+          <span
             className="
-              flex
-              h-10
-              w-10
-              shrink-0
-              items-center
-              justify-center
-              rounded-xl
-              bg-emerald-50
-              text-emerald-600
-              dark:bg-emerald-950/50
-              dark:text-emerald-400
+              text-lg
+              font-bold
+              text-slate-950
+              dark:text-white
             "
           >
-            <Sparkles size={18} />
-          </div>
+            {formatPrice(price)}
+          </span>
 
-          <div className="min-w-0">
-            <h3
+          {originalPrice && (
+            <span
               className="
-                text-sm
-                font-bold
-                text-slate-900
-                dark:text-white
+                text-[11px]
+                text-slate-400
+                line-through
               "
             >
-              AI Product Comparison
-            </h3>
+              {formatPrice(originalPrice)}
+            </span>
+          )}
+        </div>
+
+        {/* Best for */}
+
+        {bestFor && (
+          <div className="mt-4">
+            <p
+              className="
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-wider
+                text-slate-400
+              "
+            >
+              Best for
+            </p>
 
             <p
               className="
                 mt-1
                 text-xs
-                leading-5
-                text-slate-500
-                dark:text-slate-400
+                font-semibold
+                text-slate-700
+                dark:text-slate-300
               "
             >
-              Compare these products based on price, rating, value, and what
-              they are best for.
+              {bestFor}
             </p>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* ============================================================ */}
-      {/* Mobile cards                                                  */}
-      {/* ============================================================ */}
+        {/* AI verdict */}
 
-      <div className="block md:hidden">
-        <div
-          className="
-            flex
-            snap-x
-            snap-mandatory
-            gap-4
-            overflow-x-auto
-            p-4
-            [scrollbar-width:none]
-            [&::-webkit-scrollbar]:hidden
-          "
-        >
-          {products.map((product) => (
-            <article
-              key={product.id}
-              className="
-                relative
-                w-[82vw]
-                max-w-[310px]
-                shrink-0
-                snap-start
-                rounded-2xl
-                border
-                border-slate-200
-                bg-white
-                p-4
-                dark:border-slate-700
-                dark:bg-slate-950
-              "
-            >
-              {/* Recommended badge */}
+        {aiVerdict && (
+          <div
+            className="
+              mt-4
+              rounded-xl
+              bg-emerald-50
+              p-3
+              dark:bg-emerald-950/30
+            "
+          >
+            <div className="flex items-start gap-2">
+              <Sparkles
+                size={13}
+                className="
+                  mt-0.5
+                  shrink-0
+                  text-emerald-600
+                  dark:text-emerald-400
+                "
+              />
 
-              {product.recommended && (
-                <div
+              <div>
+                <p
                   className="
-                    absolute
-                    left-3
-                    top-3
-                    z-10
-                    flex
-                    items-center
-                    gap-1
-                    rounded-full
-                    bg-emerald-600
-                    px-2.5
-                    py-1
-                    text-[10px]
+                    text-[9px]
                     font-bold
-                    text-white
-                  "
-                >
-                  <Sparkles size={11} />
-                  AI Pick
-                </div>
-              )}
-
-              {/* Image */}
-
-              <button
-                type="button"
-                onClick={() => handleViewProduct(product)}
-                className="
-                  block
-                  w-full
-                  overflow-hidden
-                  rounded-xl
-                  bg-slate-100
-                  dark:bg-slate-900
-                "
-              >
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="
-                    aspect-square
-                    w-full
-                    object-contain
-                    p-5
-                    transition-transform
-                    duration-300
-                    hover:scale-105
-                  "
-                />
-              </button>
-
-              {/* Product name */}
-
-              <h4
-                className="
-                  mt-4
-                  line-clamp-2
-                  min-h-10
-                  text-sm
-                  font-semibold
-                  text-slate-900
-                  dark:text-white
-                "
-              >
-                {product.name}
-              </h4>
-
-              {/* Rating */}
-
-              <div className="mt-2 flex items-center gap-2">
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-1
-                    rounded-md
-                    bg-emerald-50
-                    px-1.5
-                    py-1
-                    text-xs
-                    font-semibold
-                    text-emerald-700
-                    dark:bg-emerald-950/50
+                    uppercase
+                    tracking-wider
+                    text-emerald-600
                     dark:text-emerald-400
                   "
                 >
-                  <Star size={11} className="fill-current" />
+                  AI verdict
+                </p>
 
-                  {product.rating}
-                </div>
-
-                <span className="text-[11px] text-slate-400">
-                  {product.reviewCount?.toLocaleString("en-IN")} reviews
-                </span>
-              </div>
-
-              {/* Price */}
-
-              <div className="mt-3 flex items-end gap-2">
-                <span
+                <p
                   className="
-                    text-lg
-                    font-bold
-                    text-slate-950
-                    dark:text-white
-                  "
-                >
-                  {formatPrice(product.price)}
-                </span>
-
-                {product.originalPrice && (
-                  <span
-                    className="
-                      text-xs
-                      text-slate-400
-                      line-through
-                    "
-                  >
-                    {formatPrice(product.originalPrice)}
-                  </span>
-                )}
-              </div>
-
-              {/* Best for */}
-
-              {product.bestFor && (
-                <div className="mt-3">
-                  <p
-                    className="
-                      text-[10px]
-                      font-semibold
-                      uppercase
-                      tracking-wider
-                      text-slate-400
-                    "
-                  >
-                    Best for
-                  </p>
-
-                  <p
-                    className="
-                      mt-1
-                      text-xs
-                      font-semibold
-                      text-slate-700
-                      dark:text-slate-300
-                    "
-                  >
-                    {product.bestFor}
-                  </p>
-                </div>
-              )}
-
-              {/* AI verdict */}
-
-              {product.aiVerdict && (
-                <div
-                  className="
-                    mt-3
-                    rounded-xl
-                    bg-emerald-50
-                    p-3
-                    dark:bg-emerald-950/30
-                  "
-                >
-                  <p
-                    className="
-                      text-[10px]
-                      font-semibold
-                      uppercase
-                      tracking-wider
-                      text-emerald-600
-                      dark:text-emerald-400
-                    "
-                  >
-                    AI verdict
-                  </p>
-
-                  <p
-                    className="
-                      mt-1
-                      text-xs
-                      font-semibold
-                      text-slate-800
-                      dark:text-slate-200
-                    "
-                  >
-                    {product.aiVerdict}
-                  </p>
-                </div>
-              )}
-
-              {/* Actions */}
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleViewProduct(product)}
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    gap-1.5
-                    rounded-xl
-                    border
-                    border-slate-200
-                    px-3
-                    py-2.5
+                    mt-1
                     text-xs
                     font-semibold
-                    text-slate-700
-                    transition-colors
-                    hover:border-emerald-300
-                    hover:text-emerald-700
-                    dark:border-slate-700
-                    dark:text-slate-300
+                    leading-4
+                    text-emerald-800
+                    dark:text-emerald-300
                   "
                 >
-                  <ExternalLink size={13} />
-                  View
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onAddToCart?.(product)}
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    gap-1.5
-                    rounded-xl
-                    bg-emerald-600
-                    px-3
-                    py-2.5
-                    text-xs
-                    font-semibold
-                    text-white
-                    transition-colors
-                    hover:bg-emerald-700
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-emerald-500/30
-                  "
-                >
-                  <ShoppingCart size={13} />
-                  Add
-                </button>
+                  {aiVerdict}
+                </p>
               </div>
-            </article>
-          ))}
-        </div>
+            </div>
+          </div>
+        )}
 
-        {/* Mobile scroll hint */}
+        {/* Add to cart */}
 
-        {products.length > 1 && (
-          <p
+        <button
+          type="button"
+          onClick={() => onAddToCart?.(product)}
+          className="
+            mt-4
+            flex
+            w-full
+            items-center
+            justify-center
+            gap-2
+            rounded-xl
+            bg-emerald-600
+            px-3
+            py-2.5
+            text-xs
+            font-semibold
+            text-white
+            transition-colors
+            hover:bg-emerald-700
+            active:bg-emerald-800
+            dark:hover:bg-emerald-500
+          "
+        >
+          <ShoppingCart size={14} />
+          Add to cart
+        </button>
+      </div>
+    </article>
+  );
+}
+
+export default function AIProductComparison({
+  products = [],
+  title = "AI Product Comparison",
+  description = "Here's how these options compare based on your request.",
+  onAddToCart,
+}) {
+  if (!products.length) {
+    return (
+      <div
+        className="
+          rounded-2xl
+          border
+          border-dashed
+          border-slate-300
+          bg-white
+          p-8
+          text-center
+          dark:border-slate-700
+          dark:bg-slate-900
+        "
+      >
+        <Sparkles size={22} className="mx-auto text-emerald-500" />
+
+        <p
+          className="
+            mt-3
+            text-sm
+            font-semibold
+            text-slate-800
+            dark:text-slate-200
+          "
+        >
+          Nothing to compare
+        </p>
+
+        <p
+          className="
+            mt-1
+            text-xs
+            text-slate-400
+          "
+        >
+          Ask CogniMart AI to compare two or more products.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="w-full">
+      {/* ============================================================
+          HEADER
+      ============================================================ */}
+
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <Sparkles
+            size={16}
             className="
-              px-4
-              pb-4
-              text-center
-              text-[10px]
-              text-slate-400
+              text-emerald-600
+              dark:text-emerald-400
+            "
+          />
+
+          <h3
+            className="
+              text-sm
+              font-bold
+              text-slate-900
+              dark:text-white
             "
           >
-            Swipe to compare more products
+            {title}
+          </h3>
+        </div>
+
+        {description && (
+          <p
+            className="
+              mt-1
+              text-xs
+              leading-5
+              text-slate-500
+              dark:text-slate-400
+            "
+          >
+            {description}
           </p>
         )}
       </div>
 
-      {/* ============================================================ */}
-      {/* Desktop comparison table                                     */}
-      {/* ============================================================ */}
+      {/* ============================================================
+          QUICK COMPARISON
+      ============================================================ */}
 
-      <div className="hidden md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse">
-            <thead>
-              <tr>
-                <th
-                  className="
-                    w-36
-                    border-b
-                    border-r
-                    border-slate-200
-                    bg-slate-50
-                    p-4
-                    text-left
-                    text-xs
-                    font-semibold
-                    text-slate-500
-                    dark:border-slate-800
-                    dark:bg-slate-950
-                    dark:text-slate-400
-                  "
-                >
-                  Comparison
-                </th>
+      <div
+        className="
+          mb-4
+          flex
+          items-center
+          gap-2
+          overflow-x-auto
+          rounded-xl
+          border
+          border-slate-200
+          bg-white
+          px-3
+          py-2.5
+          dark:border-slate-800
+          dark:bg-slate-900
+        "
+      >
+        <span
+          className="
+            shrink-0
+            text-[9px]
+            font-bold
+            uppercase
+            tracking-wider
+            text-slate-400
+          "
+        >
+          Compared
+        </span>
 
-                {products.map((product) => (
-                  <th
-                    key={product.id}
-                    className="
-                      relative
-                      min-w-[190px]
-                      border-b
-                      border-slate-200
-                      p-4
-                      text-left
-                      align-top
-                      dark:border-slate-800
-                    "
-                  >
-                    {product.recommended && (
-                      <span
-                        className="
-                          absolute
-                          right-3
-                          top-3
-                          rounded-full
-                          bg-emerald-600
-                          px-2
-                          py-1
-                          text-[9px]
-                          font-bold
-                          text-white
-                        "
-                      >
-                        AI Pick
-                      </span>
-                    )}
+        <span
+          className="
+            shrink-0
+            rounded-full
+            bg-emerald-50
+            px-2.5
+            py-1
+            text-[10px]
+            font-semibold
+            text-emerald-700
+            dark:bg-emerald-950/50
+            dark:text-emerald-400
+          "
+        >
+          {products.length} products
+        </span>
+      </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleViewProduct(product)}
-                      className="
-                        overflow-hidden
-                        rounded-xl
-                        bg-slate-100
-                        dark:bg-slate-950
-                      "
-                    >
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="
-                          h-28
-                          w-28
-                          object-contain
-                          p-2
-                          transition-transform
-                          hover:scale-105
-                        "
-                      />
-                    </button>
+      {/* ============================================================
+          PRODUCT GRID
+      ============================================================ */}
 
-                    <p
-                      className="
-                        mt-3
-                        line-clamp-2
-                        text-xs
-                        font-bold
-                        text-slate-900
-                        dark:text-white
-                      "
-                    >
-                      {product.name}
-                    </p>
-                  </th>
-                ))}
-              </tr>
-            </thead>
+      <div
+        className="
+          grid
+          grid-cols-1
+          gap-4
+          sm:grid-cols-2
+          lg:grid-cols-3
+        "
+      >
+        {products.map((product) => (
+          <ComparisonCard
+            key={product.id}
+            product={product}
+            onAddToCart={onAddToCart}
+          />
+        ))}
+      </div>
 
-            <tbody>
-              {/* Price */}
+      {/* ============================================================
+          AI NOTE
+      ============================================================ */}
 
-              <tr>
-                <td
-                  className="
-                    border-b
-                    border-r
-                    border-slate-200
-                    bg-slate-50
-                    p-4
-                    text-xs
-                    font-semibold
-                    text-slate-500
-                    dark:border-slate-800
-                    dark:bg-slate-950
-                    dark:text-slate-400
-                  "
-                >
-                  Price
-                </td>
+      <div
+        className="
+          mt-4
+          flex
+          items-start
+          gap-2
+          rounded-xl
+          border
+          border-emerald-100
+          bg-emerald-50/60
+          px-3
+          py-3
+          dark:border-emerald-900/50
+          dark:bg-emerald-950/20
+        "
+      >
+        <Check
+          size={13}
+          className="
+            mt-0.5
+            shrink-0
+            text-emerald-600
+            dark:text-emerald-400
+          "
+        />
 
-                {products.map((product) => (
-                  <td
-                    key={product.id}
-                    className="
-                      border-b
-                      border-slate-200
-                      p-4
-                      dark:border-slate-800
-                    "
-                  >
-                    <p className="text-sm font-bold text-slate-950 dark:text-white">
-                      {formatPrice(product.price)}
-                    </p>
-
-                    {product.originalPrice && (
-                      <p className="mt-0.5 text-[10px] text-slate-400 line-through">
-                        {formatPrice(product.originalPrice)}
-                      </p>
-                    )}
-                  </td>
-                ))}
-              </tr>
-
-              {/* Rating */}
-
-              <tr>
-                <td
-                  className="
-                    border-b
-                    border-r
-                    border-slate-200
-                    bg-slate-50
-                    p-4
-                    text-xs
-                    font-semibold
-                    text-slate-500
-                    dark:border-slate-800
-                    dark:bg-slate-950
-                    dark:text-slate-400
-                  "
-                >
-                  Rating
-                </td>
-
-                {products.map((product) => (
-                  <td
-                    key={product.id}
-                    className="
-                      border-b
-                      border-slate-200
-                      p-4
-                      dark:border-slate-800
-                    "
-                  >
-                    <div className="flex items-center gap-1">
-                      <Star
-                        size={13}
-                        className="fill-amber-400 text-amber-400"
-                      />
-
-                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                        {product.rating}
-                      </span>
-                    </div>
-
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      {product.reviewCount?.toLocaleString("en-IN")} reviews
-                    </p>
-                  </td>
-                ))}
-              </tr>
-
-              {/* Best For */}
-
-              <tr>
-                <td
-                  className="
-                    border-b
-                    border-r
-                    border-slate-200
-                    bg-slate-50
-                    p-4
-                    text-xs
-                    font-semibold
-                    text-slate-500
-                    dark:border-slate-800
-                    dark:bg-slate-950
-                    dark:text-slate-400
-                  "
-                >
-                  Best for
-                </td>
-
-                {products.map((product) => (
-                  <td
-                    key={product.id}
-                    className="
-                      border-b
-                      border-slate-200
-                      p-4
-                      text-xs
-                      font-semibold
-                      text-slate-700
-                      dark:border-slate-800
-                      dark:text-slate-300
-                    "
-                  >
-                    {product.bestFor || "—"}
-                  </td>
-                ))}
-              </tr>
-
-              {/* AI Verdict */}
-
-              <tr>
-                <td
-                  className="
-                    border-b
-                    border-r
-                    border-slate-200
-                    bg-slate-50
-                    p-4
-                    text-xs
-                    font-semibold
-                    text-slate-500
-                    dark:border-slate-800
-                    dark:bg-slate-950
-                    dark:text-slate-400
-                  "
-                >
-                  AI verdict
-                </td>
-
-                {products.map((product) => (
-                  <td
-                    key={product.id}
-                    className="
-                      border-b
-                      border-slate-200
-                      p-4
-                      dark:border-slate-800
-                    "
-                  >
-                    <div className="flex items-start gap-2">
-                      <Check
-                        size={15}
-                        className="mt-0.5 shrink-0 text-emerald-500"
-                      />
-
-                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        {product.aiVerdict || "Good option"}
-                      </span>
-                    </div>
-                  </td>
-                ))}
-              </tr>
-
-              {/* Actions */}
-
-              <tr>
-                <td
-                  className="
-                    border-r
-                    border-slate-200
-                    bg-slate-50
-                    p-4
-                    dark:border-slate-800
-                    dark:bg-slate-950
-                  "
-                />
-
-                {products.map((product) => (
-                  <td key={product.id} className="p-4">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleViewProduct(product)}
-                        className="
-                          flex
-                          flex-1
-                          items-center
-                          justify-center
-                          gap-1.5
-                          rounded-xl
-                          border
-                          border-slate-200
-                          px-3
-                          py-2.5
-                          text-xs
-                          font-semibold
-                          text-slate-700
-                          transition-colors
-                          hover:border-emerald-300
-                          hover:text-emerald-700
-                          dark:border-slate-700
-                          dark:text-slate-300
-                        "
-                      >
-                        <ExternalLink size={13} />
-                        View
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onAddToCart?.(product)}
-                        className="
-                          flex
-                          flex-1
-                          items-center
-                          justify-center
-                          gap-1.5
-                          rounded-xl
-                          bg-emerald-600
-                          px-3
-                          py-2.5
-                          text-xs
-                          font-semibold
-                          text-white
-                          transition-colors
-                          hover:bg-emerald-700
-                          focus:outline-none
-                          focus:ring-2
-                          focus:ring-emerald-500/30
-                        "
-                      >
-                        <ShoppingCart size={13} />
-                        Add
-                      </button>
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <p
+          className="
+            text-[10px]
+            leading-4
+            text-emerald-800
+            dark:text-emerald-300
+          "
+        >
+          The AI recommendation is based on the product information available to
+          CogniMart and your current request. Consider your own preferences
+          before making a purchase.
+        </p>
       </div>
     </section>
   );

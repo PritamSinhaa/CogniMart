@@ -34,7 +34,7 @@ export default function AIProductCard({ product, onAddToCart }) {
       className="
         group
         overflow-hidden
-        rounded-2xl
+        rounded-xl
         border
         border-slate-200
         bg-white
@@ -42,52 +42,58 @@ export default function AIProductCard({ product, onAddToCart }) {
         duration-200
         hover:-translate-y-0.5
         hover:border-emerald-200
-        hover:shadow-lg
+        hover:shadow-md
         dark:border-slate-800
         dark:bg-slate-900
         dark:hover:border-emerald-900
       "
     >
       {/* Image */}
-      <button
-        type="button"
-        onClick={handleViewProduct}
+
+      <div
         className="
           relative
-          block
-          aspect-square
+          aspect-[4/3]
           w-full
           overflow-hidden
           bg-slate-100
           dark:bg-slate-800
         "
       >
-        {productImage ? (
-          <img
-            src={productImage}
-            alt={productName}
-            className="
-              h-full
-              w-full
-              object-cover
-              transition-transform
-              duration-500
-              group-hover:scale-105
-            "
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-slate-400">
-            No image
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={handleViewProduct}
+          className="block h-full w-full"
+          aria-label={`View ${productName}`}
+        >
+          {productImage ? (
+            <img
+              src={productImage}
+              alt={productName}
+              className="
+                h-full
+                w-full
+                object-cover
+                transition-transform
+                duration-500
+                group-hover:scale-105
+              "
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-slate-400">
+              No image
+            </div>
+          )}
+        </button>
 
         {/* Discount */}
+
         {discount && (
           <span
             className="
               absolute
-              left-3
-              top-3
+              left-2.5
+              top-2.5
               rounded-full
               bg-emerald-600
               px-2.5
@@ -102,6 +108,7 @@ export default function AIProductCard({ product, onAddToCart }) {
         )}
 
         {/* Wishlist */}
+
         <button
           type="button"
           onClick={(event) => {
@@ -110,11 +117,11 @@ export default function AIProductCard({ product, onAddToCart }) {
           aria-label="Add to wishlist"
           className="
             absolute
-            right-3
-            top-3
+            right-2.5
+            top-2.5
             flex
-            h-9
-            w-9
+            h-8
+            w-8
             items-center
             justify-center
             rounded-full
@@ -128,24 +135,26 @@ export default function AIProductCard({ product, onAddToCart }) {
             dark:text-slate-400
           "
         >
-          <Heart size={16} />
+          <Heart size={15} />
         </button>
-      </button>
+      </div>
 
       {/* Content */}
-      <div className="p-4">
+
+      <div className="p-3">
         {/* AI reason */}
+
         {reason && (
           <div
             className="
-              mb-3
+              mb-2
               flex
               items-start
               gap-2
-              rounded-xl
+              rounded-lg
               bg-emerald-50
-              px-3
-              py-2
+              px-2.5
+              py-1.5
               text-xs
               leading-5
               text-emerald-700
@@ -160,6 +169,7 @@ export default function AIProductCard({ product, onAddToCart }) {
         )}
 
         {/* Product name */}
+
         <button
           type="button"
           onClick={handleViewProduct}
@@ -180,8 +190,9 @@ export default function AIProductCard({ product, onAddToCart }) {
         </button>
 
         {/* Rating */}
+
         {rating !== undefined && (
-          <div className="mt-2 flex items-center gap-1.5">
+          <div className="mt-1.5 flex items-center gap-1.5">
             <Star size={14} className="fill-amber-400 text-amber-400" />
 
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -195,7 +206,8 @@ export default function AIProductCard({ product, onAddToCart }) {
         )}
 
         {/* Price */}
-        <div className="mt-3 flex items-center gap-2">
+
+        <div className="mt-2 flex items-center gap-2">
           <span className="text-lg font-bold text-slate-950 dark:text-white">
             ₹{Number(price || 0).toLocaleString("en-IN")}
           </span>
@@ -208,20 +220,21 @@ export default function AIProductCard({ product, onAddToCart }) {
         </div>
 
         {/* Add to cart */}
+
         <button
           type="button"
           onClick={() => onAddToCart?.(product)}
           className="
-            mt-4
+            mt-3
             flex
             w-full
             items-center
             justify-center
             gap-2
-            rounded-xl
+            rounded-lg
             bg-emerald-600
             px-4
-            py-2.5
+            py-2
             text-sm
             font-semibold
             text-white
@@ -234,7 +247,7 @@ export default function AIProductCard({ product, onAddToCart }) {
             focus-visible:ring-offset-2
           "
         >
-          <ShoppingCart size={16} />
+          <ShoppingCart size={15} />
           Add to cart
         </button>
       </div>
