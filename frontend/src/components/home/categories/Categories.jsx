@@ -1,4 +1,10 @@
+import { Link } from "react-router-dom";
+
 import CategoryCard from "./CategoryCard";
+
+import Container from "../../ui/Container";
+import Section from "../../ui/Section";
+import SectionHeader from "../../ui/SectionHeader";
 
 const categories = [
   {
@@ -41,43 +47,36 @@ const categories = [
 
 export default function Categories() {
   return (
-    <section className="bg-white py-16 dark:bg-slate-950">
-      <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12 xl:px-16">
-        {/* Section heading */}
-        <div className="mb-8 flex items-end justify-between gap-4">
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">
-              Explore
-            </p>
+    <Section
+      id="categories"
+      className="bg-background"
+    >
+      <Container>
+        <SectionHeader
+          eyebrow="Explore"
+          title="Shop by Category"
+          description="Discover products across categories, powered by smarter shopping."
+          action={
+            <Link
+              to="/products"
+              className="
+                hidden
+                shrink-0
+                text-sm
+                font-semibold
+                text-brand-600
+                transition-colors
+                hover:text-brand-700
+                sm:block
+                dark:text-brand-400
+                dark:hover:text-brand-300
+              "
+            >
+              View all →
+            </Link>
+          }
+        />
 
-            <h2 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-white">
-              Shop by Category
-            </h2>
-
-            <p className="mt-2 max-w-xl text-sm text-slate-500 dark:text-slate-400">
-              Discover products across categories, powered by
-              smarter shopping.
-            </p>
-          </div>
-
-          <a
-            href="/categories"
-            className="
-              hidden
-              shrink-0
-              text-sm
-              font-semibold
-              text-emerald-600
-              transition-colors
-              hover:text-emerald-700
-              sm:block
-            "
-          >
-            View all →
-          </a>
-        </div>
-
-        {/* Category grid */}
         <div
           className="
             grid
@@ -96,22 +95,25 @@ export default function Categories() {
           ))}
         </div>
 
-        {/* Mobile view-all */}
-        <a
-          href="/categories"
+        <Link
+          to="/products"
           className="
             mt-6
             block
             text-center
             text-sm
             font-semibold
-            text-emerald-600
+            text-brand-600
+            transition-colors
+            hover:text-brand-700
             sm:hidden
+            dark:text-brand-400
+            dark:hover:text-brand-300
           "
         >
           View all categories →
-        </a>
-      </div>
-    </section>
+        </Link>
+      </Container>
+    </Section>
   );
 }

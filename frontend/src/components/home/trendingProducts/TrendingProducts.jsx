@@ -1,6 +1,11 @@
 import { ArrowRight, Flame } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import ProductCard from "./ProductCard";
+
+import Container from "../../ui/Container";
+import Section from "../../ui/Section";
+import SectionHeader from "../../ui/SectionHeader";
 
 const products = [
   {
@@ -79,53 +84,49 @@ const products = [
 
 export default function TrendingProducts() {
   return (
-    <section className="bg-slate-50 py-16 dark:bg-slate-900/40">
-      <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12 xl:px-16">
-        {/* Header */}
-        <div className="mb-8 flex items-end justify-between gap-4">
-          <div>
-            <div className="mb-2 flex items-center gap-2">
+    <Section
+      id="trending"
+      className="bg-muted/40"
+    >
+      <Container>
+        <SectionHeader
+          eyebrow={
+            <span className="inline-flex items-center gap-2">
               <Flame
                 size={16}
                 className="text-orange-500"
               />
 
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">
-                Trending now
-              </p>
-            </div>
+              <span>Trending now</span>
+            </span>
+          }
+          title="Trending Products"
+          description="Discover products shoppers are loving right now."
+          action={
+            <Link
+              to="/products"
+              className="
+                hidden
+                shrink-0
+                items-center
+                gap-1.5
+                text-sm
+                font-semibold
+                text-brand-600
+                transition-colors
+                hover:text-brand-700
+                sm:flex
+                dark:text-brand-400
+                dark:hover:text-brand-300
+              "
+            >
+              View all
 
-            <h2 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-white">
-              Trending Products
-            </h2>
+              <ArrowRight size={15} />
+            </Link>
+          }
+        />
 
-            <p className="mt-2 max-w-xl text-sm text-slate-500 dark:text-slate-400">
-              Discover products shoppers are loving right now.
-            </p>
-          </div>
-
-          <a
-            href="/products"
-            className="
-              hidden
-              shrink-0
-              items-center
-              gap-1.5
-              text-sm
-              font-semibold
-              text-emerald-600
-              transition-colors
-              hover:text-emerald-700
-              sm:flex
-            "
-          >
-            View all
-
-            <ArrowRight size={15} />
-          </a>
-        </div>
-
-        {/* Products */}
         <div
           className="
             grid
@@ -146,9 +147,8 @@ export default function TrendingProducts() {
           ))}
         </div>
 
-        {/* Mobile button */}
-        <a
-          href="/products"
+        <Link
+          to="/products"
           className="
             mx-auto
             mt-8
@@ -158,27 +158,26 @@ export default function TrendingProducts() {
             gap-2
             rounded-full
             border
-            border-slate-200
-            bg-white
+            border-border
+            bg-background
             px-5
             py-2.5
             text-sm
             font-semibold
-            text-slate-700
-            transition-colors
-            hover:border-emerald-300
-            hover:text-emerald-600
+            text-foreground
+            transition-all
+            hover:border-brand-300
+            hover:text-brand-600
             sm:hidden
-            dark:border-slate-700
-            dark:bg-slate-900
-            dark:text-slate-300
+            dark:hover:border-brand-700
+            dark:hover:text-brand-400
           "
         >
           View all products
 
           <ArrowRight size={15} />
-        </a>
-      </div>
-    </section>
+        </Link>
+      </Container>
+    </Section>
   );
 }

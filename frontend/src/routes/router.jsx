@@ -6,6 +6,19 @@ import MainLayout from "../components/layout/MainLayout";
 import Products from "../pages/Products/Products";
 import ProductDetails from "../pages/ProductDetails/ProductDetails";
 import Cart from "../pages/Cart/Cart";
+import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import ResetPassword from "../pages/Auth/ResetPassword";
+import Wishlist from "../pages/Wishlist/Wishlist";
+import Categories from "../pages/Categories/Categories";
+import Deals from "../pages/Deals/Deals";
+import Checkout from "../pages/Checkout/Checkout";
+import OrderSuccess from "../pages/OrderSuccess/OrderSuccess";
+import Orders from "../pages/Orders/Orders";
+import OrderDetails from "@/pages/OrderDetails/OrderDetails";
+import Profile from "@/pages/Profile/Profile";
+import AIAssistant from "@/pages/AIAssistant/AIAssistant";
 
 function NotFound() {
   return (
@@ -41,17 +54,66 @@ const router = createBrowserRouter([
         path: "products",
         element: <Products />,
       },
-
+      {
+        path: "categories",
+        element: <Categories />,
+      },
+      {
+        path: "deals",
+        element: <Deals />,
+      },
       {
         path: "products/:id",
         element: <ProductDetails />,
       },
-
       {
         path: "cart",
         element: <Cart />,
       },
-
+      {
+        path: "checkout",
+        element: <Checkout />,
+      },
+      {
+        path: "order-success",
+        element: <OrderSuccess />,
+      },
+      {
+        path: "wishlist",
+        element: <Wishlist />,
+      },
+      {
+        path: "orders",
+        element: <Orders />,
+      },
+      {
+        path: "orders/:orderId",
+        element: <OrderDetails />,
+      },
+      {
+        path: "login",
+        element: <Login />,
+      },
+      {
+        path: "register",
+        element: <Register />,
+      },
+      {
+        path: "forgot-password",
+        element: <ForgotPassword />,
+      },
+      {
+        path: "reset-password",
+        element: <ResetPassword />,
+      },
+      {
+        path: "account/profile",
+        element: <Profile />,
+      },
+      {
+        path: "ai-assistant",
+        element: <AIAssistant />,
+      },
       {
         path: "*",
         element: <NotFound />,

@@ -6,7 +6,7 @@ import AIAssistantBanner from "./components/home/AIBanner/AIAssistantBanner";
 
 function App() {
   return (
-    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <main>
         <Hero />
         <AIFeatures />

@@ -5,7 +5,7 @@ import Footer from "./footer/Footer";
 
 export default function MainLayout() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
       <main>
