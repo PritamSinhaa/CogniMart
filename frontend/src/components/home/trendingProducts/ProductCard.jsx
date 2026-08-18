@@ -1,38 +1,82 @@
+import { useState } from "react";
 import { motion } from "motion/react";
-import {
-  Heart,
-  ShoppingCart,
-  Star,
-} from "lucide-react";
+import { Check, Heart, ShoppingCart, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useCart } from "../../../context/CartContext";
+import { useWishlist } from "../../../context/WishlistContext";
 
-export default function ProductCard({
-  product,
-  index = 0,
-}) {
+export default function ProductCard({ product, index = 0 }) {
   const { addToCart } = useCart();
 
-  const handleAddToCart = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
-    addToCart(product);
-  };
+  const [isAdded, setIsAdded] = useState(false);
+
+  /* =========================
+     WISHLIST
+  ========================== */
+
+  const isWishlisted = isInWishlist(product.id);
 
   const handleWishlist = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    // Wishlist functionality will be added later.
-    console.log("Wishlist:", product);
+    console.log("🔥 PRODUCT CARD HEART CLICK");
+
+    console.log("🔥 PRODUCT:", product);
+
+    console.log("🔥 PRODUCT ID:", product.id);
+
+    console.log("🔥 BEFORE TOGGLE:", isWishlisted);
+
+    toggleWishlist(product);
+
+    console.log("🔥 toggleWishlist() CALLED");
   };
+
+  /* =========================
+     ADD TO CART
+  ========================== */
+
+  const handleAddToCart = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    console.log("🛒 ADD TO CART:", product.id);
+
+    addToCart(product);
+
+    setIsAdded(true);
+
+    setTimeout(() => {
+      setIsAdded(false);
+    }, 1500);
+  };
+
+  /* =========================
+     PRODUCT URL
+  ========================== */
+
+  const productUrl = `/products/${product.id}`;
+
+  /* =========================
+     STOCK
+  ========================== */
+
+  const isOutOfStock = product.stock !== undefined && product.stock <= 0;
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{
+        opacity: 0,
+        y: 20,
+      }}
+      whileInView={{
+        opacity: 1,
+        y: 0,
+      }}
       viewport={{
         once: true,
         amount: 0.15,
@@ -42,7 +86,9 @@ export default function ProductCard({
         delay: index * 0.07,
         ease: [0.22, 1, 0.36, 1],
       }}
-      whileHover={{ y: -5 }}
+      whileHover={{
+        y: -5,
+      }}
       className="
         group
         relative
@@ -65,7 +111,7 @@ export default function ProductCard({
       ========================== */}
 
       <Link
-        to={`/products/${product.id}`}
+        to={productUrl}
         aria-label={`View ${product.name}`}
         className="block"
       >
@@ -94,7 +140,7 @@ export default function ProductCard({
             "
           />
 
-          {/* Discount Badge */}
+          {/* Discount */}
 
           {product.discount && (
             <span
@@ -114,50 +160,78 @@ export default function ProductCard({
               {product.discount}% OFF
             </span>
           )}
+
+          {/* Out of Stock */}
+
+          {isOutOfStock && (
+            <div
+              className="
+                absolute
+                inset-0
+                flex
+                items-center
+                justify-center
+                bg-black/35
+                backdrop-blur-[1px]
+              "
+            >
+              <span
+                className="
+                  rounded-full
+                  bg-white/95
+                  px-3
+                  py-1.5
+                  text-xs
+                  font-bold
+                  text-slate-900
+                "
+              >
+                Out of Stock
+              </span>
+            </div>
+          )}
         </div>
       </Link>
 
-      {/* =========================
-          WISHLIST BUTTON
-      ========================== */}
+      {/* =================================================
+          TEMPORARY DEBUG WISHLIST BUTTON
+      ================================================= */}
 
       <button
         type="button"
-        aria-label={`Add ${product.name} to wishlist`}
-        onClick={handleWishlist}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          console.log("❤️❤️❤️ HEART CLICKED ❤️❤️❤️");
+          console.log("PRODUCT:", product);
+          console.log("PRODUCT ID:", product?.id);
+
+          toggleWishlist(product);
+        }}
         className="
-          absolute
-          right-3
-          top-3
-          z-10
-          flex
-          h-9
-          w-9
-          items-center
-          justify-center
-          rounded-full
-          border
-          border-slate-200
-          bg-white/90
-          text-slate-500
-          shadow-sm
-          backdrop-blur-sm
-          transition-all
-          duration-200
-          hover:scale-105
-          hover:text-red-500
-          dark:border-slate-700
-          dark:bg-slate-900/90
-          dark:text-slate-400
-          dark:hover:text-red-400
-        "
+    absolute
+    right-3
+    top-3
+    z-[9999]
+    flex
+    h-12
+    w-12
+    cursor-pointer
+    items-center
+    justify-center
+    rounded-full
+    bg-red-500
+    text-white
+    shadow-xl
+  "
       >
-        <Heart size={16} />
+        <Heart size={22} />
       </button>
 
-      {/* =========================
+      {/* =================================================
           PRODUCT CONTENT
-      ========================== */}
+      ================================================= */}
 
       <div className="p-4">
         {/* Category */}
@@ -176,10 +250,7 @@ export default function ProductCard({
 
         {/* Product Name */}
 
-        <Link
-          to={`/products/${product.id}`}
-          className="block"
-        >
+        <Link to={productUrl} className="block">
           <h3
             className="
               mt-1
@@ -199,12 +270,23 @@ export default function ProductCard({
           </h3>
         </Link>
 
-        {/* =========================
-            RATING
-        ========================== */}
+        {/* Rating */}
 
-        <div className="mt-2 flex items-center gap-1.5">
-          <div className="flex items-center gap-0.5">
+        <div
+          className="
+            mt-2
+            flex
+            items-center
+            gap-1.5
+          "
+        >
+          <div
+            className="
+              flex
+              items-center
+              gap-0.5
+            "
+          >
             <Star
               size={13}
               className="
@@ -225,16 +307,26 @@ export default function ProductCard({
             </span>
           </div>
 
-          <span className="text-xs text-slate-400">
+          <span
+            className="
+              text-xs
+              text-slate-400
+            "
+          >
             ({product.reviews})
           </span>
         </div>
 
-        {/* =========================
-            PRICE
-        ========================== */}
+        {/* Price */}
 
-        <div className="mt-3 flex items-end gap-2">
+        <div
+          className="
+            mt-3
+            flex
+            items-end
+            gap-2
+          "
+        >
           <span
             className="
               text-lg
@@ -243,7 +335,7 @@ export default function ProductCard({
               dark:text-white
             "
           >
-            ₹{product.price.toLocaleString("en-IN")}
+            ₹{Number(product.price).toLocaleString("en-IN")}
           </span>
 
           {product.originalPrice && (
@@ -254,22 +346,18 @@ export default function ProductCard({
                 line-through
               "
             >
-              ₹
-              {product.originalPrice.toLocaleString(
-                "en-IN",
-              )}
+              ₹{Number(product.originalPrice).toLocaleString("en-IN")}
             </span>
           )}
         </div>
 
-        {/* =========================
-            ADD TO CART
-        ========================== */}
+        {/* Add To Cart */}
 
         <button
           type="button"
+          disabled={isOutOfStock}
           onClick={handleAddToCart}
-          className="
+          className={`
             mt-4
             flex
             h-10
@@ -278,23 +366,52 @@ export default function ProductCard({
             justify-center
             gap-2
             rounded-xl
-            bg-slate-950
             text-xs
             font-semibold
-            text-white
             transition-all
             duration-200
-            hover:bg-emerald-600
             active:scale-[0.98]
-            dark:bg-white
-            dark:text-slate-950
-            dark:hover:bg-emerald-500
-            dark:hover:text-white
-          "
-        >
-          <ShoppingCart size={15} />
 
-          Add to Cart
+            ${
+              isOutOfStock
+                ? `
+                  cursor-not-allowed
+                  bg-slate-200
+                  text-slate-400
+                  dark:bg-slate-800
+                  dark:text-slate-600
+                `
+                : isAdded
+                  ? `
+                    bg-emerald-600
+                    text-white
+                    dark:bg-emerald-500
+                  `
+                  : `
+                    bg-slate-950
+                    text-white
+                    hover:bg-emerald-600
+                    dark:bg-white
+                    dark:text-slate-950
+                    dark:hover:bg-emerald-500
+                    dark:hover:text-white
+                  `
+            }
+          `}
+        >
+          {isOutOfStock ? (
+            "Out of Stock"
+          ) : isAdded ? (
+            <>
+              <Check size={15} />
+              Added to Cart
+            </>
+          ) : (
+            <>
+              <ShoppingCart size={15} />
+              Add to Cart
+            </>
+          )}
         </button>
       </div>
     </motion.article>
