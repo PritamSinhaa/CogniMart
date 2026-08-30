@@ -1,25 +1,56 @@
 import { createBrowserRouter } from "react-router-dom";
 
+// App and layouts
 import App from "../App";
 import MainLayout from "../components/layout/MainLayout";
+import AdminLayout from "../components/admin/layout/AdminLayout";
+import FooterLayout from "../components/layout/FooterLayout";
 
+// Route protection
+import ProtectedRoute from "./ProtectedRoute";
+import AdminRoute from "./AdminRoute";
+
+// Customer pages
 import Products from "../pages/Products/Products";
 import ProductDetails from "../pages/ProductDetails/ProductDetails";
 import Cart from "../pages/Cart/Cart";
-import Login from "../pages/Auth/Login";
-import Register from "../pages/Auth/Register";
-import ForgotPassword from "../pages/Auth/ForgotPassword";
-import ResetPassword from "../pages/Auth/ResetPassword";
 import Wishlist from "../pages/Wishlist/Wishlist";
 import Categories from "../pages/Categories/Categories";
 import Deals from "../pages/Deals/Deals";
 import Checkout from "../pages/Checkout/Checkout";
 import OrderSuccess from "../pages/OrderSuccess/OrderSuccess";
 import Orders from "../pages/Orders/Orders";
-import OrderDetails from "@/pages/OrderDetails/OrderDetails";
-import Profile from "@/pages/Profile/Profile";
-import AIAssistant from "@/pages/AIAssistant/AIAssistant";
+import OrderDetails from "../pages/OrderDetails/OrderDetails";
+import Profile from "../pages/Profile/Profile";
+import AIAssistant from "../pages/AIAssistant/AIAssistant";
 
+// Authentication pages
+import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import ResetPassword from "../pages/Auth/ResetPassword";
+
+// Admin pages
+import AdminDashboard from "../pages/Admin/Dashboard/AdminDashboard";
+import AdminProducts from "../pages/Admin/Products/AdminProducts";
+import AdminProductForm from "../pages/Admin/Products/AdminProductForm";
+import AdminOrders from "../pages/Admin/Orders/AdminOrders";
+import AdminOrderDetails from "../pages/Admin/Orders/AdminOrderDetails";
+import AdminCustomers from "../pages/Admin/Customers/AdminCustomers";
+import AdminCustomerDetails from "../pages/Admin/Customers/AdminCustomerDetails";
+import AdminInventory from "../pages/Admin/Inventory/AdminInventory";
+import AdminCategories from "../pages/Admin/Categories/AdminCategories";
+import AdminCoupons from "../pages/Admin/Coupons/AdminCoupons";
+import AdminAnalytics from "../pages/Admin/Analytics/AdminAnalytics";
+import AdminAIInsights from "../pages/Admin/AIInsights/AdminAIInsights";
+import AdminNotifications from "../pages/Admin/Notifications/AdminNotifications";
+import AdminSettings from "../pages/Admin/Settings/AdminSettings";
+
+/*
+ * 404 PAGE
+ *
+ * You can move this into src/pages/NotFound/NotFound.jsx later.
+ */
 function NotFound() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center bg-slate-50 px-5 dark:bg-slate-950">
@@ -33,7 +64,7 @@ function NotFound() {
         </h1>
 
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          The page you're looking for doesn't exist yet.
+          The page you&apos;re looking for doesn&apos;t exist.
         </p>
       </div>
     </div>
@@ -41,84 +72,254 @@ function NotFound() {
 }
 
 const router = createBrowserRouter([
+  /*
+   * CUSTOMER ROUTES
+   *
+   * MainLayout provides the customer navbar, page content
+   * and footer through its <Outlet />.
+   */
+ {
+  path: "/",
+  element: <MainLayout />,
+
+  children: [
+    /*
+     * Pages that display the footer
+     */
+    {
+      element: <FooterLayout />,
+
+      children: [
+        {
+          index: true,
+          element: <App />,
+        },
+        {
+          path: "products",
+          element: <Products />,
+        },
+        {
+          path: "products/:id",
+          element: <ProductDetails />,
+        },
+        {
+          path: "categories",
+          element: <Categories />,
+        },
+        {
+          path: "deals",
+          element: <Deals />,
+        },
+      ],
+    },
+
+    /*
+     * Pages without the footer
+     */
+    {
+      path: "cart",
+      element: <Cart />,
+    },
+    {
+      path: "wishlist",
+      element: <Wishlist />,
+    },
+    {
+      path: "login",
+      element: <Login />,
+    },
+    {
+      path: "register",
+      element: <Register />,
+    },
+    {
+      path: "forgot-password",
+      element: <ForgotPassword />,
+    },
+    {
+      path: "reset-password",
+      element: <ResetPassword />,
+    },
+    {
+      path: "ai-assistant",
+      element: <AIAssistant />,
+    },
+
+    /*
+     * Protected pages without footer
+     */
+    {
+      path: "checkout",
+      element: (
+        <ProtectedRoute>
+          <Checkout />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "orders",
+      element: (
+        <ProtectedRoute>
+          <Orders />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "orders/:orderId",
+      element: (
+        <ProtectedRoute>
+          <OrderDetails />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "order-success",
+      element: (
+        <ProtectedRoute>
+          <OrderSuccess />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "account/profile",
+      element: (
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      ),
+    },
+  ],
+},
+  /*
+   * ADMIN ROUTES
+   *
+   * Wrapping AdminLayout protects every child route.
+   * Users must be authenticated and have role === "admin".
+   */
   {
-    path: "/",
-    element: <MainLayout />,
+    path: "/admin",
+
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ),
+
     children: [
+      /*
+       * Admin dashboard
+       */
       {
         index: true,
-        element: <App />,
+        element: <AdminDashboard />,
       },
 
+      /*
+       * Admin products
+       */
       {
         path: "products",
-        element: <Products />,
+        element: <AdminProducts />,
       },
       {
-        path: "categories",
-        element: <Categories />,
+        path: "products/new",
+        element: <AdminProductForm />,
       },
       {
-        path: "deals",
-        element: <Deals />,
+        path: "products/:productId/edit",
+        element: <AdminProductForm />,
       },
-      {
-        path: "products/:id",
-        element: <ProductDetails />,
-      },
-      {
-        path: "cart",
-        element: <Cart />,
-      },
-      {
-        path: "checkout",
-        element: <Checkout />,
-      },
-      {
-        path: "order-success",
-        element: <OrderSuccess />,
-      },
-      {
-        path: "wishlist",
-        element: <Wishlist />,
-      },
+
+      /*
+       * Admin orders
+       */
       {
         path: "orders",
-        element: <Orders />,
+        element: <AdminOrders />,
       },
       {
         path: "orders/:orderId",
-        element: <OrderDetails />,
+        element: <AdminOrderDetails />,
+      },
+
+      /*
+       * Admin customers
+       */
+      {
+        path: "customers",
+        element: <AdminCustomers />,
       },
       {
-        path: "login",
-        element: <Login />,
+        path: "customers/:customerId",
+        element: <AdminCustomerDetails />,
       },
+
+      /*
+       * Admin inventory
+       */
       {
-        path: "register",
-        element: <Register />,
+        path: "inventory",
+        element: <AdminInventory />,
       },
+
+      /*
+       * Admin categories
+       */
       {
-        path: "forgot-password",
-        element: <ForgotPassword />,
+        path: "categories",
+        element: <AdminCategories />,
       },
+
+      /*
+       * Admin coupons
+       */
       {
-        path: "reset-password",
-        element: <ResetPassword />,
+        path: "coupons",
+        element: <AdminCoupons />,
       },
+
+      /*
+       * Admin analytics
+       */
       {
-        path: "account/profile",
-        element: <Profile />,
+        path: "analytics",
+        element: <AdminAnalytics />,
       },
+
+      /*
+       * Admin AI business insights
+       */
       {
-        path: "ai-assistant",
-        element: <AIAssistant />,
+        path: "ai-insights",
+        element: <AdminAIInsights />,
       },
+
+      /*
+       * Admin notifications
+       */
       {
-        path: "*",
-        element: <NotFound />,
+        path: "notifications",
+        element: <AdminNotifications />,
+      },
+
+      /*
+       * Admin settings
+       */
+      {
+        path: "settings",
+        element: <AdminSettings />,
       },
     ],
+  },
+
+  /*
+   * GLOBAL 404 ROUTE
+   *
+   * This must remain last.
+   */
+  {
+    path: "*",
+    element: <NotFound />,
   },
 ]);
 

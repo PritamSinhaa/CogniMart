@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { Eye, EyeOff, LockKeyhole, Mail, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function Login() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -20,36 +25,37 @@ export default function Login() {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // UI only for now.
-    console.log("Login form:", formData);
+    try {
+      await login(formData);
+
+      console.log("Login successful");
+
+      navigate("/");
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
   };
 
   return (
     <main className="min-h-[calc(100vh-68px)] bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto flex min-h-[calc(100vh-68px)] w-full max-w-7xl items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20 lg:grid-cols-2">
-
           {/* =================================================
               LEFT — BRAND / AI SIDE
           ================================================= */}
+
           <div className="relative hidden overflow-hidden bg-emerald-600 p-10 text-white lg:flex lg:flex-col lg:justify-between">
-            
-            {/* Decorative circles */}
             <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10" />
+
             <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-white/10" />
 
             <div className="relative z-10">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2"
-              >
+              <Link to="/" className="inline-flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
-                  <span className="text-lg font-bold">
-                    C
-                  </span>
+                  <span className="text-lg font-bold">C</span>
                 </div>
 
                 <span className="text-xl font-bold tracking-tight">
@@ -69,9 +75,9 @@ export default function Login() {
                 </h1>
 
                 <p className="mt-6 max-w-sm text-sm leading-6 text-emerald-50/85">
-                  Discover better products, compare prices, understand
-                  reviews, and get personalized recommendations with
-                  CogniMart's AI-powered shopping experience.
+                  Discover better products, compare prices, understand reviews,
+                  and get personalized recommendations with CogniMart's
+                  AI-powered shopping experience.
                 </p>
               </div>
             </div>
@@ -90,6 +96,7 @@ export default function Login() {
           {/* =================================================
               RIGHT — LOGIN FORM
           ================================================= */}
+
           <div className="flex items-center p-6 sm:p-10 lg:p-12">
             <motion.div
               initial={{
@@ -107,14 +114,13 @@ export default function Login() {
               className="mx-auto w-full max-w-md"
             >
               {/* Mobile logo */}
+
               <Link
                 to="/"
                 className="mb-8 flex items-center justify-center gap-2 lg:hidden"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
-                  <span className="font-bold">
-                    C
-                  </span>
+                  <span className="font-bold">C</span>
                 </div>
 
                 <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -123,6 +129,7 @@ export default function Login() {
               </Link>
 
               {/* Heading */}
+
               <div>
                 <p className="text-sm font-semibold text-emerald-600">
                   Welcome back
@@ -138,11 +145,10 @@ export default function Login() {
               </div>
 
               {/* Form */}
-              <form
-                onSubmit={handleSubmit}
-                className="mt-8 space-y-5"
-              >
+
+              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                 {/* Email */}
+
                 <div>
                   <label
                     htmlFor="email"
@@ -196,6 +202,7 @@ export default function Login() {
                 </div>
 
                 {/* Password */}
+
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <label
@@ -257,13 +264,9 @@ export default function Login() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowPassword((previous) => !previous)
-                      }
+                      onClick={() => setShowPassword((previous) => !previous)}
                       aria-label={
-                        showPassword
-                          ? "Hide password"
-                          : "Show password"
+                        showPassword ? "Hide password" : "Show password"
                       }
                       className="
                         absolute
@@ -284,16 +287,13 @@ export default function Login() {
                         dark:hover:text-slate-200
                       "
                     >
-                      {showPassword ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
 
                 {/* Remember me */}
+
                 <div className="flex items-center gap-2">
                   <input
                     id="remember"
@@ -316,6 +316,7 @@ export default function Login() {
                 </div>
 
                 {/* Submit */}
+
                 <button
                   type="submit"
                   className="
@@ -349,7 +350,6 @@ export default function Login() {
                   "
                 >
                   Sign in
-
                   <ArrowRight
                     size={16}
                     className="transition-transform duration-200 group-hover:translate-x-0.5"
@@ -358,6 +358,7 @@ export default function Login() {
               </form>
 
               {/* Divider */}
+
               <div className="my-7 flex items-center gap-4">
                 <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
 
@@ -369,6 +370,7 @@ export default function Login() {
               </div>
 
               {/* Register */}
+
               <p className="text-center text-sm text-slate-500 dark:text-slate-400">
                 Don't have an account?{" "}
                 <Link
@@ -380,6 +382,7 @@ export default function Login() {
               </p>
 
               {/* Back home */}
+
               <div className="mt-6 text-center">
                 <Link
                   to="/"

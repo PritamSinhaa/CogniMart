@@ -1,25 +1,16 @@
-import { useState } from "react";
-import { Check, User } from "lucide-react";
+import {
+  Check,
+  User,
+} from "lucide-react";
 
 export default function ProfileInfo({
   form,
+  user,
   editing,
+  saving,
   onChange,
   onSave,
 }) {
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    setSaving(true);
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, 500)
-    );
-
-    onSave();
-    setSaving(false);
-  };
-
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center justify-between">
@@ -29,7 +20,8 @@ export default function ProfileInfo({
           </h3>
 
           <p className="mt-1 text-xs text-slate-400">
-            Your basic account information.
+            Your basic account
+            information.
           </p>
         </div>
 
@@ -46,6 +38,9 @@ export default function ProfileInfo({
             name="name"
             value={form.name}
             onChange={onChange}
+            minLength={3}
+            maxLength={50}
+            required
           />
 
           <ProfileInput
@@ -54,24 +49,21 @@ export default function ProfileInfo({
             type="email"
             value={form.email}
             onChange={onChange}
-          />
-
-          <ProfileInput
-            label="Phone number"
-            name="phone"
-            value={form.phone}
-            onChange={onChange}
+            required
           />
 
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={handleSave}
+              onClick={onSave}
               disabled={saving}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Check size={15} />
-              {saving ? "Saving..." : "Save changes"}
+
+              {saving
+                ? "Saving..."
+                : "Save changes"}
             </button>
           </div>
         </div>
@@ -88,13 +80,17 @@ export default function ProfileInfo({
           />
 
           <InfoItem
-            label="Phone number"
-            value={form.phone}
+            label="Account type"
+            value={
+              user.role === "admin"
+                ? "Administrator"
+                : "Customer"
+            }
           />
 
           <InfoItem
-            label="Account type"
-            value="Customer"
+            label="Email verification"
+            value="Not displayed yet"
           />
         </div>
       )}
@@ -102,7 +98,10 @@ export default function ProfileInfo({
   );
 }
 
-function InfoItem({ label, value }) {
+function InfoItem({
+  label,
+  value,
+}) {
   return (
     <div>
       <p className="text-xs text-slate-400">
@@ -110,7 +109,7 @@ function InfoItem({ label, value }) {
       </p>
 
       <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-        {value}
+        {value || "Not provided"}
       </p>
     </div>
   );
@@ -122,6 +121,7 @@ function ProfileInput({
   type = "text",
   value,
   onChange,
+  ...inputProps
 }) {
   return (
     <label className="block">
@@ -134,7 +134,8 @@ function ProfileInput({
         name={name}
         value={value}
         onChange={onChange}
-        className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+        className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+        {...inputProps}
       />
     </label>
   );

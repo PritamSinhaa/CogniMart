@@ -8,10 +8,16 @@ import {
   ArrowRight,
   Check,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function Register() {
+  const navigate = useNavigate();
+
+  const { register } = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -22,6 +28,9 @@ export default function Register() {
     confirmPassword: "",
   });
 
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -29,20 +38,57 @@ export default function Register() {
       ...previous,
       [name]: value,
     }));
+
+    setError("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // UI only for now.
-    console.log("Register form:", formData);
+    setError("");
+
+    // Check password confirmation on frontend
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Only send fields required by the backend.
+      // confirmPassword is frontend-only.
+      await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      console.log("Registration successful");
+
+      navigate("/");
+    } catch (error) {
+      console.error("Registration failed:", error);
+
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Registration failed. Please try again.";
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <main className="min-h-[calc(100vh-68px)] bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto flex min-h-[calc(100vh-68px)] w-full max-w-7xl items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20 lg:grid-cols-2">
-          {/* LEFT SIDE */}
+          {/* =================================================
+              LEFT SIDE
+          ================================================= */}
+
           <div className="relative hidden overflow-hidden bg-emerald-600 p-10 text-white lg:flex lg:flex-col lg:justify-between">
             <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10" />
 
@@ -111,7 +157,10 @@ export default function Register() {
             </div>
           </div>
 
-          {/* RIGHT SIDE */}
+          {/* =================================================
+              RIGHT SIDE
+          ================================================= */}
+
           <div className="flex items-center p-6 sm:p-10 lg:p-12">
             <motion.div
               initial={{
@@ -129,6 +178,7 @@ export default function Register() {
               className="mx-auto w-full max-w-md"
             >
               {/* Mobile logo */}
+
               <Link
                 to="/"
                 className="mb-7 flex items-center justify-center gap-2 lg:hidden"
@@ -138,11 +188,13 @@ export default function Register() {
                 </div>
 
                 <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  Cogni<span className="text-emerald-600">Mart</span>
+                  Cogni
+                  <span className="text-emerald-600">Mart</span>
                 </span>
               </Link>
 
               {/* Heading */}
+
               <div>
                 <p className="text-sm font-semibold text-emerald-600">
                   Get started
@@ -157,9 +209,34 @@ export default function Register() {
                 </p>
               </div>
 
+              {/* Error */}
+
+              {error && (
+                <div
+                  className="
+                    mt-5
+                    rounded-xl
+                    border
+                    border-red-200
+                    bg-red-50
+                    px-4
+                    py-3
+                    text-sm
+                    text-red-600
+                    dark:border-red-900/50
+                    dark:bg-red-950/30
+                    dark:text-red-400
+                  "
+                >
+                  {error}
+                </div>
+              )}
+
               {/* FORM */}
+
               <form onSubmit={handleSubmit} className="mt-7 space-y-4">
                 {/* Name */}
+
                 <div>
                   <label
                     htmlFor="name"
@@ -213,6 +290,7 @@ export default function Register() {
                 </div>
 
                 {/* Email */}
+
                 <div>
                   <label
                     htmlFor="register-email"
@@ -266,6 +344,7 @@ export default function Register() {
                 </div>
 
                 {/* Password */}
+
                 <div>
                   <label
                     htmlFor="register-password"
@@ -346,6 +425,7 @@ export default function Register() {
                 </div>
 
                 {/* Confirm password */}
+
                 <div>
                   <label
                     htmlFor="confirmPassword"
@@ -434,6 +514,7 @@ export default function Register() {
                 </div>
 
                 {/* Terms */}
+
                 <label className="flex cursor-pointer items-start gap-2.5 pt-1">
                   <input
                     type="checkbox"
@@ -469,8 +550,10 @@ export default function Register() {
                 </label>
 
                 {/* Submit */}
+
                 <button
                   type="submit"
+                  disabled={loading}
                   className="
                     group
                     flex
@@ -492,6 +575,8 @@ export default function Register() {
                     hover:bg-emerald-700
                     hover:shadow-md
                     active:scale-[0.99]
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
                     focus-visible:outline-none
                     focus-visible:ring-2
                     focus-visible:ring-emerald-500
@@ -501,15 +586,22 @@ export default function Register() {
                     dark:focus-visible:ring-offset-slate-900
                   "
                 >
-                  Create account
-                  <ArrowRight
-                    size={16}
-                    className="transition-transform duration-200 group-hover:translate-x-0.5"
-                  />
+                  {loading ? (
+                    "Creating account..."
+                  ) : (
+                    <>
+                      Create account
+                      <ArrowRight
+                        size={16}
+                        className="transition-transform duration-200 group-hover:translate-x-0.5"
+                      />
+                    </>
+                  )}
                 </button>
               </form>
 
               {/* Login */}
+
               <p className="mt-7 text-center text-sm text-slate-500 dark:text-slate-400">
                 Already have an account?{" "}
                 <Link
@@ -519,6 +611,8 @@ export default function Register() {
                   Sign in
                 </Link>
               </p>
+
+              {/* Back home */}
 
               <div className="mt-5 text-center">
                 <Link

@@ -2,15 +2,28 @@ import { Bot } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const links = [
-  { label: "Home", to: "/" },
-  { label: "Products", to: "/products" },
-  { label: "Categories", to: "/categories" },
-  { label: "Deals", to: "/deals" },
+  {
+    label: "Home",
+    to: "/",
+  },
+  {
+    label: "Products",
+    to: "/products",
+  },
+  {
+    label: "Categories",
+    to: "/categories",
+  },
+  {
+    label: "Deals",
+    to: "/deals",
+  },
 ];
 
 export default function DesktopNav() {
   return (
     <div className="hidden items-center gap-6 lg:flex">
+      {/* Main navigation */}
       {links.map((link) => (
         <NavLink
           key={link.label}
@@ -36,18 +49,24 @@ export default function DesktopNav() {
         </NavLink>
       ))}
 
+      {/* AI Assistant */}
       <NavLink
         to="/ai-assistant"
         className={({ isActive }) =>
-          `flex items-center gap-1.5 text-[13px] font-medium transition-colors ${
+          `flex items-center gap-1.5 py-5 text-[13px] font-medium transition-colors ${
             isActive
               ? "text-emerald-600"
-              : "text-slate-600 hover:text-emerald-600 dark:text-slate-300"
+              : "text-slate-600 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400"
           }`
         }
       >
-        <Bot size={15} />
-        AI Assistant
+        <Bot
+          size={15}
+          strokeWidth={1.8}
+          className="shrink-0"
+        />
+
+        <span>AI Assistant</span>
       </NavLink>
     </div>
   );

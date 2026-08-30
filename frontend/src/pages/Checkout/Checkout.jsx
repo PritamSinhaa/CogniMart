@@ -1,116 +1,155 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
-  CreditCard,
-  MapPin,
+  LoaderCircle,
   ShieldCheck,
-  Smartphone,
-  Truck,
   WalletCards,
 } from "lucide-react";
 
-const cartItems = [
-  {
-    id: 1,
-    name: "Sony WH-1000XM5",
-    variant: "Black",
-    quantity: 1,
-    price: 29990,
-    image:
-      "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=300&q=80",
-  },
-  {
-    id: 2,
-    name: "Apple AirPods Pro",
-    variant: "White",
-    quantity: 1,
-    price: 24999,
-    image:
-      "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=300&q=80",
-  },
-];
+import { useState } from "react";
 
-const formatPrice = (price) =>
-  new Intl.NumberFormat("en-IN", {
+import { Link, useNavigate } from "react-router-dom";
+
+import DeliveryAddressSection from "../../components/checkout/DeliveryAddressSection";
+
+import { createOrder } from "../../api/order.api";
+
+import { useAddresses } from "../../context/AddressContext";
+import { useCart } from "../../context/CartContext";
+
+const FALLBACK_IMAGE = "/images/product-placeholder.png";
+
+function formatPrice(price) {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(price);
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(price) || 0);
+}
+
+function getErrorMessage(error) {
+  return error?.data?.message || error?.message || "Unable to place your order";
+}
 
 export default function Checkout() {
   const navigate = useNavigate();
 
-  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const {
+    cartItems,
+    cartCount,
+    subtotal,
+    shippingFee,
+    total,
+    loading: cartLoading,
+    refreshCart,
+  } = useCart();
 
-  const [deliveryMethod, setDeliveryMethod] =
-    useState("standard");
+  const {
+    selectedAddress,
+    selectedAddressId,
+    loading: addressLoading,
+  } = useAddresses();
 
-  const [address, setAddress] = useState({
-    fullName: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    pincode: "",
-  });
+  /*
+   * Keep COD as the only active option until
+   * Razorpay payment verification is connected.
+   */
+  const [paymentMethod] = useState("cod");
 
-  const subtotal = cartItems.reduce(
-    (total, item) =>
-      total + item.price * item.quantity,
-    0
+  const [placingOrder, setPlacingOrder] = useState(false);
+
+  const [orderError, setOrderError] = useState("");
+
+  /*
+  |--------------------------------------------------------------------------
+  | Price information
+  |--------------------------------------------------------------------------
+  */
+
+  const originalSubtotal = cartItems.reduce(
+    (sum, item) =>
+      sum + Number(item.originalPrice || item.price) * item.quantity,
+    0,
   );
 
-  const discount = 2000;
+  const productDiscount = Math.max(originalSubtotal - subtotal, 0);
 
-  const deliveryCharge =
-    deliveryMethod === "express" ? 149 : 0;
+  /*
+  |--------------------------------------------------------------------------
+  | Place order
+  |--------------------------------------------------------------------------
+  */
 
-  const total =
-    subtotal - discount + deliveryCharge;
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setAddress((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // UI only for now.
-    // Later this will call the order/payment API.
-    navigate("/order-success");
+    if (placingOrder) {
+      return;
+    }
+
+    setOrderError("");
+
+    if (cartItems.length === 0) {
+      setOrderError("Your cart is empty. Add products before checking out.");
+
+      return;
+    }
+
+    if (!selectedAddressId) {
+      setOrderError("Please save and select a delivery address.");
+
+      return;
+    }
+
+    setPlacingOrder(true);
+
+    try {
+      const response = await createOrder({
+        addressId: selectedAddressId,
+        paymentMethod,
+      });
+
+      const order = response?.data?.order || response?.order || null;
+
+      /*
+       * The backend clears the MongoDB cart inside
+       * the order transaction. Refresh the frontend
+       * state after the order succeeds.
+       */
+      await refreshCart();
+
+      navigate("/order-success", {
+        replace: true,
+        state: {
+          order,
+          orderId: order?._id || null,
+        },
+      });
+    } catch (error) {
+      setOrderError(getErrorMessage(error));
+    } finally {
+      setPlacingOrder(false);
+    }
   };
+
+  const checkoutLoading = cartLoading || addressLoading;
+
+  const placeOrderDisabled =
+    checkoutLoading ||
+    placingOrder ||
+    cartItems.length === 0 ||
+    !selectedAddressId;
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-
-        {/* =====================================================
-            PAGE HEADER
-        ====================================================== */}
+        {/* Page header */}
 
         <div className="mb-6">
           <Link
             to="/cart"
-            className="
-              inline-flex
-              items-center
-              gap-2
-              text-sm
-              font-medium
-              text-slate-500
-              transition-colors
-              hover:text-emerald-600
-              dark:text-slate-400
-            "
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-emerald-600 dark:text-slate-400"
           >
             <ArrowLeft size={16} />
             Back to cart
@@ -126,665 +165,358 @@ export default function Checkout() {
             </h1>
 
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Complete your delivery and payment details.
+              Select a saved address and complete your order.
             </p>
           </div>
         </div>
 
-        {/* =====================================================
-            CHECKOUT CONTENT
-        ====================================================== */}
+        {checkoutLoading ? (
+          <CheckoutLoading />
+        ) : cartItems.length === 0 ? (
+          <EmptyCheckout />
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="grid gap-5 lg:grid-cols-[1fr_340px]"
+          >
+            {/* Left column */}
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid gap-5 lg:grid-cols-[1fr_340px]"
-        >
-          {/* ===================================================
-              LEFT COLUMN
-          =================================================== */}
+            <div className="space-y-4">
+              {/* Saved delivery addresses */}
 
-          <div className="space-y-4">
+              <DeliveryAddressSection />
 
-            {/* =================================================
-                DELIVERY ADDRESS
-            ================================================== */}
+              {/* Payment method */}
 
-            <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <PaymentSection paymentMethod={paymentMethod} />
 
-              <SectionHeader
-                icon={MapPin}
-                title="Delivery address"
-                description="Where should we deliver your order?"
-              />
+              {/* Security notice */}
 
-              <div className="grid gap-4 p-4 sm:grid-cols-2">
-
-                <Input
-                  label="Full name"
-                  name="fullName"
-                  value={address.fullName}
-                  onChange={handleChange}
-                  placeholder="Full name"
-                  required
+              <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/10 dark:bg-emerald-500/5">
+                <ShieldCheck
+                  size={19}
+                  className="mt-0.5 shrink-0 text-emerald-600"
                 />
 
-                <Input
-                  label="Phone number"
-                  name="phone"
-                  value={address.phone}
-                  onChange={handleChange}
-                  placeholder="10-digit phone number"
-                  type="tel"
-                  required
-                />
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                    Secure checkout
+                  </p>
 
-                <div className="sm:col-span-2">
-                  <Input
-                    label="Address"
-                    name="address"
-                    value={address.address}
-                    onChange={handleChange}
-                    placeholder="House no., street, area"
-                    required
-                  />
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    Product prices, stock, discounts and order totals are
+                    verified securely by the server.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Order summary */}
+
+            <aside className="lg:sticky lg:top-24 lg:self-start">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+                  <h2 className="text-lg font-bold text-slate-950 dark:text-white">
+                    Order summary
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    {cartCount} {cartCount === 1 ? "item" : "items"}
+                  </p>
                 </div>
 
-                <Input
-                  label="City"
-                  name="city"
-                  value={address.city}
-                  onChange={handleChange}
-                  placeholder="City"
-                  required
-                />
+                {/* Products */}
 
-                <Input
-                  label="State"
-                  name="state"
-                  value={address.state}
-                  onChange={handleChange}
-                  placeholder="State"
-                  required
-                />
+                <div className="max-h-80 space-y-3 overflow-y-auto p-4">
+                  {cartItems.map((item) => (
+                    <CheckoutItem key={item.id} item={item} />
+                  ))}
+                </div>
 
-                <Input
-                  label="Pincode"
-                  name="pincode"
-                  value={address.pincode}
-                  onChange={handleChange}
-                  placeholder="Pincode"
-                  inputMode="numeric"
-                  required
-                />
-              </div>
-            </section>
+                {/* Selected address summary */}
 
-            {/* =================================================
-                DELIVERY METHOD
-            ================================================== */}
+                {selectedAddress && (
+                  <div className="border-t border-slate-200 px-4 py-4 dark:border-slate-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Delivering to
+                    </p>
 
-            <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {selectedAddress.fullName}
+                    </p>
 
-              <SectionHeader
-                icon={Truck}
-                title="Delivery method"
-                description="Choose your preferred delivery option."
-              />
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      {selectedAddress.addressLine1}
+                      {selectedAddress.addressLine2
+                        ? `, ${selectedAddress.addressLine2}`
+                        : ""}
+                      , {selectedAddress.city}, {selectedAddress.state}{" "}
+                      {selectedAddress.postalCode}
+                    </p>
+                  </div>
+                )}
 
-              <div className="space-y-3 p-4">
+                {/* Totals */}
 
-                <DeliveryOption
-                  selected={
-                    deliveryMethod === "standard"
-                  }
-                  onClick={() =>
-                    setDeliveryMethod("standard")
-                  }
-                  title="Standard delivery"
-                  description="3–5 business days"
-                  price="FREE"
-                />
+                <div className="border-t border-slate-200 p-4 dark:border-slate-800">
+                  <div className="space-y-3 text-sm">
+                    <SummaryRow
+                      label="Original price"
+                      value={formatPrice(originalSubtotal)}
+                    />
 
-                <DeliveryOption
-                  selected={
-                    deliveryMethod === "express"
-                  }
-                  onClick={() =>
-                    setDeliveryMethod("express")
-                  }
-                  title="Express delivery"
-                  description="1–2 business days"
-                  price="₹149"
-                />
+                    {productDiscount > 0 && (
+                      <SummaryRow
+                        label="Product discount"
+                        value={`− ${formatPrice(productDiscount)}`}
+                        valueClass="text-emerald-600"
+                      />
+                    )}
 
-              </div>
-            </section>
+                    <SummaryRow
+                      label="Subtotal"
+                      value={formatPrice(subtotal)}
+                    />
 
-            {/* =================================================
-                PAYMENT METHOD
-            ================================================== */}
-
-            <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-
-              <SectionHeader
-                icon={WalletCards}
-                title="Payment method"
-                description="Choose how you want to pay."
-              />
-
-              <div className="grid gap-3 p-4 sm:grid-cols-3">
-
-                <PaymentOption
-                  selected={paymentMethod === "upi"}
-                  onClick={() =>
-                    setPaymentMethod("upi")
-                  }
-                  icon={Smartphone}
-                  title="UPI"
-                  description="GPay, PhonePe"
-                />
-
-                <PaymentOption
-                  selected={paymentMethod === "card"}
-                  onClick={() =>
-                    setPaymentMethod("card")
-                  }
-                  icon={CreditCard}
-                  title="Card"
-                  description="Credit / Debit"
-                />
-
-                <PaymentOption
-                  selected={paymentMethod === "cod"}
-                  onClick={() =>
-                    setPaymentMethod("cod")
-                  }
-                  icon={WalletCards}
-                  title="Cash on delivery"
-                  description="Pay at doorstep"
-                />
-
-              </div>
-
-              {/* Card details */}
-
-              {paymentMethod === "card" && (
-                <motion.div
-                  initial={{
-                    opacity: 0,
-                    height: 0,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    height: "auto",
-                  }}
-                  className="grid gap-4 px-4 pb-4 sm:grid-cols-2"
-                >
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Card number"
-                      name="cardNumber"
-                      placeholder="1234 5678 9012 3456"
-                      inputMode="numeric"
+                    <SummaryRow
+                      label="Delivery"
+                      value={
+                        shippingFee === 0 ? "FREE" : formatPrice(shippingFee)
+                      }
+                      valueClass={shippingFee === 0 ? "text-emerald-600" : ""}
                     />
                   </div>
 
-                  <Input
-                    label="Expiry date"
-                    name="expiry"
-                    placeholder="MM / YY"
-                  />
+                  <div className="my-4 border-t border-dashed border-slate-200 dark:border-slate-700" />
 
-                  <Input
-                    label="CVV"
-                    name="cvv"
-                    placeholder="•••"
-                    type="password"
-                  />
-                </motion.div>
-              )}
-            </section>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      Total
+                    </span>
 
-            {/* =================================================
-                SECURITY NOTICE
-            ================================================== */}
-
-            <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/10 dark:bg-emerald-500/5">
-              <ShieldCheck
-                size={19}
-                className="mt-0.5 shrink-0 text-emerald-600"
-              />
-
-              <div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                  Secure checkout
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  Your payment and personal information are
-                  protected with industry-standard security.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* ===================================================
-              RIGHT COLUMN — ORDER SUMMARY
-          =================================================== */}
-
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-
-              {/* Summary Header */}
-
-              <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
-                <h2 className="text-lg font-bold text-slate-950 dark:text-white">
-                  Order summary
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  {cartItems.length} items
-                </p>
-              </div>
-
-              {/* =================================================
-                  CART ITEMS
-              ================================================== */}
-
-              <div className="space-y-3 p-4">
-
-                {cartItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex gap-3"
-                  >
-                    {/* Image */}
-
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-full w-full object-cover"
-                      />
-
-                      <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold text-white">
-                        {item.quantity}
-                      </span>
-                    </div>
-
-                    {/* Details */}
-
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                        {item.name}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        {item.variant}
-                      </p>
-                    </div>
-
-                    {/* Price */}
-
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      {formatPrice(
-                        item.price * item.quantity
-                      )}
-                    </p>
+                    <span className="text-xl font-bold text-slate-950 dark:text-white">
+                      {formatPrice(total)}
+                    </span>
                   </div>
-                ))}
-              </div>
 
-              {/* =================================================
-                  TOTALS
-              ================================================== */}
+                  {orderError && (
+                    <p
+                      role="alert"
+                      className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium leading-5 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+                    >
+                      {orderError}
+                    </p>
+                  )}
 
-              <div className="border-t border-slate-200 p-4 dark:border-slate-800">
+                  <button
+                    type="submit"
+                    disabled={placeOrderDisabled}
+                    className="group mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 text-sm font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all hover:bg-emerald-700 hover:shadow-md active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {placingOrder ? (
+                      <>
+                        <LoaderCircle size={16} className="animate-spin" />
+                        Placing order...
+                      </>
+                    ) : (
+                      <>
+                        Place COD order
+                        <ArrowRight
+                          size={16}
+                          className="transition-transform group-hover:translate-x-0.5"
+                        />
+                      </>
+                    )}
+                  </button>
 
-                <div className="space-y-3 text-sm">
+                  {!selectedAddressId && (
+                    <p className="mt-3 text-center text-xs font-medium text-amber-600 dark:text-amber-400">
+                      Save and select an address to continue.
+                    </p>
+                  )}
 
-                  <SummaryRow
-                    label="Subtotal"
-                    value={formatPrice(subtotal)}
-                  />
-
-                  <SummaryRow
-                    label="Discount"
-                    value={`− ${formatPrice(discount)}`}
-                    valueClass="text-emerald-600"
-                  />
-
-                  <SummaryRow
-                    label="Delivery"
-                    value={
-                      deliveryCharge === 0
-                        ? "FREE"
-                        : formatPrice(deliveryCharge)
-                    }
-                    valueClass={
-                      deliveryCharge === 0
-                        ? "text-emerald-600"
-                        : ""
-                    }
-                  />
+                  <p className="mt-3 text-center text-[11px] leading-4 text-slate-400">
+                    By placing your order, you agree to our terms and
+                    conditions.
+                  </p>
                 </div>
-
-                <div className="my-4 border-t border-dashed border-slate-200 dark:border-slate-700" />
-
-                {/* Total */}
-
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    Total
-                  </span>
-
-                  <span className="text-xl font-bold text-slate-950 dark:text-white">
-                    {formatPrice(total)}
-                  </span>
-                </div>
-
-                {/* Place order */}
-
-                <button
-                  type="submit"
-                  className="
-                    group
-                    mt-4
-                    flex
-                    h-11
-                    w-full
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-lg
-                    bg-emerald-600
-                    text-sm
-                    font-semibold
-                    text-white
-                    shadow-sm
-                    shadow-emerald-600/20
-                    transition-all
-                    hover:bg-emerald-700
-                    hover:shadow-md
-                    active:scale-[0.99]
-                  "
-                >
-                  Place order
-
-                  <ArrowRight
-                    size={16}
-                    className="transition-transform group-hover:translate-x-0.5"
-                  />
-                </button>
-
-                <p className="mt-3 text-center text-[11px] leading-4 text-slate-400">
-                  By placing your order, you agree to our
-                  terms and conditions.
-                </p>
               </div>
-            </div>
-          </aside>
-        </form>
+            </aside>
+          </form>
+        )}
       </div>
     </main>
   );
 }
 
-/* ============================================================
-   SECTION HEADER
-============================================================ */
+/*
+|--------------------------------------------------------------------------
+| Payment
+|--------------------------------------------------------------------------
+*/
 
-function SectionHeader({
-  icon: Icon,
-  title,
-  description,
-}) {
+function PaymentSection({ paymentMethod }) {
   return (
-    <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-4 dark:border-slate-800">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10">
-        <Icon size={18} />
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10">
+          <WalletCards size={18} />
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-slate-950 dark:text-white">
+            Payment method
+          </h2>
+
+          <p className="mt-0.5 text-xs text-slate-400">
+            Online payment will be available after Razorpay integration.
+          </p>
+        </div>
       </div>
 
-      <div>
-        <h2 className="text-lg font-bold text-slate-950 dark:text-white">
-          {title}
-        </h2>
+      <div className="p-4">
+        <div className="relative rounded-xl border border-emerald-500 bg-emerald-50/60 p-4 dark:bg-emerald-500/5">
+          <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
+            <ShieldCheck size={12} />
+          </div>
 
-        <p className="mt-0.5 text-xs text-slate-400">
-          {description}
-        </p>
+          <WalletCards size={20} className="text-emerald-600" />
+
+          <p className="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
+            Cash on delivery
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Pay when your order arrives
+          </p>
+
+          <input type="hidden" name="paymentMethod" value={paymentMethod} />
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-/* ============================================================
-   INPUT
-============================================================ */
+/*
+|--------------------------------------------------------------------------
+| Checkout item
+|--------------------------------------------------------------------------
+*/
 
-function Input({
-  label,
-  name,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-  required = false,
-  inputMode,
-}) {
+function CheckoutItem({ item }) {
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = FALLBACK_IMAGE;
+  };
+
   return (
-    <div>
-      <label
-        htmlFor={name}
-        className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200"
-      >
-        {label}
-      </label>
+    <div className="flex gap-3">
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+        <img
+          src={item.image || FALLBACK_IMAGE}
+          alt={item.name}
+          onError={handleImageError}
+          className="h-full w-full object-cover"
+        />
 
-      <input
-        id={name}
-        name={name}
-        type={type}
-        value={value || ""}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        inputMode={inputMode}
-        className="
-          h-10
-          w-full
-          rounded-lg
-          border
-          border-slate-200
-          bg-white
-          px-3
-          text-sm
-          text-slate-900
-          outline-none
-          transition-all
-          placeholder:text-slate-400
-          hover:border-slate-300
-          focus:border-emerald-500
-          focus:ring-4
-          focus:ring-emerald-500/10
-          dark:border-slate-700
-          dark:bg-slate-950
-          dark:text-white
-          dark:hover:border-slate-600
-        "
-      />
-    </div>
-  );
-}
-
-/* ============================================================
-   DELIVERY OPTION
-============================================================ */
-
-function DeliveryOption({
-  selected,
-  onClick,
-  title,
-  description,
-  price,
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        flex
-        w-full
-        items-center
-        gap-3
-        rounded-lg
-        border
-        p-3
-        text-left
-        transition-all
-        ${
-          selected
-            ? "border-emerald-500 bg-emerald-50/60 dark:border-emerald-500 dark:bg-emerald-500/5"
-            : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
-        }
-      `}
-    >
-      {/* Radio */}
-
-      <div
-        className={`
-          flex
-          h-5
-          w-5
-          shrink-0
-          items-center
-          justify-center
-          rounded-full
-          border
-          ${
-            selected
-              ? "border-emerald-600 bg-emerald-600"
-              : "border-slate-300 dark:border-slate-600"
-          }
-        `}
-      >
-        {selected && (
-          <Check
-            size={12}
-            strokeWidth={3}
-            className="text-white"
-          />
-        )}
+        <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold text-white">
+          {item.quantity}
+        </span>
       </div>
-
-      <Truck
-        size={18}
-        className={
-          selected
-            ? "text-emerald-600"
-            : "text-slate-400"
-        }
-      />
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-          {title}
-        </p>
+        <Link
+          to={`/products/${item.id}`}
+          className="line-clamp-2 text-sm font-semibold text-slate-800 transition-colors hover:text-emerald-600 dark:text-slate-200"
+        >
+          {item.name}
+        </Link>
 
-        <p className="mt-0.5 text-xs text-slate-400">
-          {description}
-        </p>
+        {item.brand && (
+          <p className="mt-1 text-xs text-slate-400">{item.brand}</p>
+        )}
+
+        <p className="mt-1 text-xs text-slate-400">Quantity: {item.quantity}</p>
       </div>
 
-      <span
-        className={`text-sm font-bold ${
-          price === "FREE"
-            ? "text-emerald-600"
-            : "text-slate-700 dark:text-slate-300"
-        }`}
-      >
-        {price}
-      </span>
-    </button>
+      <p className="shrink-0 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        {formatPrice(item.price * item.quantity)}
+      </p>
+    </div>
   );
 }
 
-/* ============================================================
-   PAYMENT OPTION
-============================================================ */
+/*
+|--------------------------------------------------------------------------
+| Summary row
+|--------------------------------------------------------------------------
+*/
 
-function PaymentOption({
-  selected,
-  onClick,
-  icon: Icon,
-  title,
-  description,
-}) {
+function SummaryRow({ label, value, valueClass = "" }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        relative
-        rounded-lg
-        border
-        p-3
-        text-left
-        transition-all
-        ${
-          selected
-            ? "border-emerald-500 bg-emerald-50/60 dark:border-emerald-500 dark:bg-emerald-500/5"
-            : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
-        }
-      `}
-    >
-      {selected && (
-        <div className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
-          <Check size={11} strokeWidth={3} />
-        </div>
-      )}
-
-      <Icon
-        size={19}
-        className={
-          selected
-            ? "text-emerald-600"
-            : "text-slate-400"
-        }
-      />
-
-      <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-        {title}
-      </p>
-
-      <p className="mt-0.5 text-xs text-slate-400">
-        {description}
-      </p>
-    </button>
-  );
-}
-
-/* ============================================================
-   SUMMARY ROW
-============================================================ */
-
-function SummaryRow({
-  label,
-  value,
-  valueClass = "",
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-slate-500 dark:text-slate-400">
-        {label}
-      </span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-slate-500 dark:text-slate-400">{label}</span>
 
       <span
         className={`font-medium text-slate-700 dark:text-slate-300 ${valueClass}`}
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Loading state
+|--------------------------------------------------------------------------
+*/
+
+function CheckoutLoading() {
+  return (
+    <div className="flex min-h-80 items-center justify-center rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="text-center">
+        <LoaderCircle
+          size={28}
+          className="mx-auto animate-spin text-emerald-600"
+        />
+
+        <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+          Loading checkout...
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Empty cart
+|--------------------------------------------------------------------------
+*/
+
+function EmptyCheckout() {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-5 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <WalletCards
+        size={36}
+        className="mx-auto text-slate-300 dark:text-slate-700"
+      />
+
+      <h2 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
+        Your cart is empty
+      </h2>
+
+      <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
+        Add products to your cart before proceeding to checkout.
+      </p>
+
+      <Link
+        to="/products"
+        className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+      >
+        Browse products
+      </Link>
     </div>
   );
 }

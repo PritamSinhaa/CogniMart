@@ -1,61 +1,175 @@
-import { Heart, ShoppingCart, Star, Check } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Check, Heart, LoaderCircle, ShoppingCart, Star } from "lucide-react";
+
+import { useEffect, useRef, useState } from "react";
+
+import { Link, useLocation, useNavigate } from "react-router-dom";
+
 import { motion } from "motion/react";
-import { useState } from "react";
 
 import { useCart } from "../../../context/CartContext";
 import { useWishlist } from "../../../context/WishlistContext";
 
-export default function ProductCard({
-  product,
-  index = 0,
-}) {
-  const [isAdding, setIsAdding] = useState(false);
+const FALLBACK_IMAGE = "/images/product-placeholder.png";
+
+export default function ProductCard({ product, index = 0 }) {
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+  const [cartError, setCartError] = useState("");
+
+  const addedTimerRef = useRef(null);
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const { addToCart } = useCart();
+
   const { toggleWishlist, isInWishlist } = useWishlist();
+
+  /*
+   * Prevent the success timer from updating state
+   * after the component has been unmounted.
+   */
+  useEffect(() => {
+    return () => {
+      if (addedTimerRef.current) {
+        window.clearTimeout(addedTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!product) {
     return null;
   }
 
+  const productId = product._id || product.id;
+
   const {
-    id,
-    name,
-    category,
-    price,
-    originalPrice,
-    discount,
+    name = "Unnamed product",
+    category = "Uncategorized",
+    price = 0,
+    originalPrice = 0,
+    discount = 0,
     rating = 0,
     reviews = 0,
     image,
-    stock = true,
+    images = [],
+    stock = 0,
+    isActive = true,
   } = product;
 
-  const wished = isInWishlist(id);
+  const categoryName =
+    typeof category === "object"
+      ? category?.name || "Uncategorized"
+      : category || "Uncategorized";
+
+  const numericPrice = Number(price) || 0;
+
+  const numericOriginalPrice = Number(originalPrice) || 0;
+
+  const numericDiscount = Number(discount) || 0;
+
+  const numericRating = Number(rating) || 0;
+
+  const numericReviews = Number(reviews) || 0;
+
+  const numericStock = Math.max(Number(stock) || 0, 0);
+
+  const productImage = image || images?.[0] || FALLBACK_IMAGE;
+
+  const isOutOfStock = !isActive || numericStock <= 0;
+
+  const wished = Boolean(productId) && isInWishlist(productId);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Wishlist
+  |--------------------------------------------------------------------------
+  */
 
   const handleWishlist = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    toggleWishlist(product);
+    if (!productId) {
+      return;
+    }
+
+    toggleWishlist({
+      ...product,
+      id: productId,
+      _id: productId,
+    });
   };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Add to cart
+  |--------------------------------------------------------------------------
+  */
 
   const handleAddToCart = async (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!stock || isAdding) {
+    if (!productId || isOutOfStock || adding) {
       return;
     }
 
-    setIsAdding(true);
+    if (addedTimerRef.current) {
+      window.clearTimeout(addedTimerRef.current);
+    }
 
-    addToCart(product);
+    setAdding(true);
+    setAdded(false);
+    setCartError("");
 
-    setTimeout(() => {
-      setIsAdding(false);
-    }, 800);
+    try {
+      await addToCart(
+        {
+          ...product,
+          id: productId,
+          _id: productId,
+        },
+        1,
+      );
+
+      setAdded(true);
+
+      addedTimerRef.current = window.setTimeout(() => {
+        setAdded(false);
+      }, 1200);
+    } catch (error) {
+      /*
+       * Cart API requires authentication.
+       */
+      if (error?.status === 401) {
+        navigate("/login", {
+          state: {
+            from: location.pathname,
+            message: "Please log in to add products to your cart.",
+          },
+        });
+
+        return;
+      }
+
+      setCartError(
+        error?.data?.message || error?.message || "Unable to add this product",
+      );
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Image fallback
+  |--------------------------------------------------------------------------
+  */
+
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = FALLBACK_IMAGE;
   };
 
   return (
@@ -74,7 +188,7 @@ export default function ProductCard({
       }}
       transition={{
         duration: 0.45,
-        delay: index * 0.05,
+        delay: Math.min(index * 0.05, 0.3),
         ease: [0.22, 1, 0.36, 1],
       }}
       whileHover={{
@@ -98,19 +212,19 @@ export default function ProductCard({
           hover:shadow-lg
         "
       >
-        {/* =================================================
-            PRODUCT IMAGE
-        ================================================= */}
+        {/* Product image */}
+
         <div className="relative aspect-square overflow-hidden bg-muted">
           <Link
-            to={`/products/${id}`}
+            to={`/products/${productId}`}
             aria-label={`View ${name}`}
             className="block h-full w-full"
           >
             <img
-              src={image}
+              src={productImage}
               alt={name}
               loading="lazy"
+              onError={handleImageError}
               className="
                 h-full
                 w-full
@@ -123,8 +237,9 @@ export default function ProductCard({
             />
           </Link>
 
-          {/* Discount */}
-          {discount > 0 && (
+          {/* Discount badge */}
+
+          {numericDiscount > 0 && (
             <div
               className="
                 absolute
@@ -140,14 +255,16 @@ export default function ProductCard({
                 shadow-sm
               "
             >
-              -{discount}%
+              -{numericDiscount}%
             </div>
           )}
 
-          {/* Out of stock */}
-          {!stock && (
+          {/* Out-of-stock overlay */}
+
+          {isOutOfStock && (
             <div
               className="
+                pointer-events-none
                 absolute
                 inset-0
                 flex
@@ -173,10 +290,12 @@ export default function ProductCard({
             </div>
           )}
 
-          {/* Wishlist */}
+          {/* Wishlist button */}
+
           <button
             type="button"
             onClick={handleWishlist}
+            disabled={!productId}
             aria-label={
               wished
                 ? `Remove ${name} from wishlist`
@@ -203,6 +322,8 @@ export default function ProductCard({
               duration-200
               hover:scale-105
               hover:bg-white
+              disabled:cursor-not-allowed
+              disabled:opacity-60
               focus-visible:outline-none
               focus-visible:ring-2
               focus-visible:ring-brand-500
@@ -217,20 +338,14 @@ export default function ProductCard({
               size={17}
               strokeWidth={1.8}
               fill={wished ? "currentColor" : "none"}
-              className={
-                wished
-                  ? "text-red-500"
-                  : "text-current"
-              }
+              className={wished ? "text-red-500" : "text-current"}
             />
           </button>
         </div>
 
-        {/* =================================================
-            PRODUCT INFORMATION
-        ================================================= */}
+        {/* Product information */}
+
         <div className="flex flex-1 flex-col p-3.5 sm:p-4">
-          {/* Category */}
           <p
             className="
               mb-1.5
@@ -241,12 +356,11 @@ export default function ProductCard({
               text-muted-foreground
             "
           >
-            {category}
+            {categoryName}
           </p>
 
-          {/* Product name */}
           <Link
-            to={`/products/${id}`}
+            to={`/products/${productId}`}
             className="
               line-clamp-2
               min-h-[2.75rem]
@@ -263,96 +377,107 @@ export default function ProductCard({
           </Link>
 
           {/* Rating */}
-          <div
-            className="
-              mt-2.5
-              flex
-              items-center
-              gap-1.5
-            "
-          >
+
+          <div className="mt-2.5 flex items-center gap-1.5">
             <div className="flex items-center gap-0.5">
-              <Star
-                size={14}
-                fill="currentColor"
-                className="text-amber-400"
-              />
+              <Star size={14} fill="currentColor" className="text-amber-400" />
 
               <span className="text-xs font-semibold text-card-foreground">
-                {rating.toFixed(1)}
+                {numericRating.toFixed(1)}
               </span>
             </div>
 
             <span className="text-xs text-muted-foreground">
-              ({reviews.toLocaleString()})
+              ({numericReviews.toLocaleString("en-IN")})
             </span>
           </div>
 
           {/* Price */}
+
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-base font-bold text-card-foreground sm:text-lg">
-              ₹{price.toLocaleString("en-IN")}
+              ₹{numericPrice.toLocaleString("en-IN")}
             </span>
 
-            {originalPrice && originalPrice > price && (
+            {numericOriginalPrice > numericPrice && (
               <span className="text-xs text-muted-foreground line-through">
-                ₹{originalPrice.toLocaleString("en-IN")}
+                ₹{numericOriginalPrice.toLocaleString("en-IN")}
               </span>
             )}
           </div>
 
-          {/* =================================================
-              ADD TO CART
-          ================================================= */}
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={!stock || isAdding}
-            className="
-              mt-4
-              flex
-              min-h-10
-              w-full
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              bg-brand-600
-              px-3
-              py-2.5
-              text-xs
-              font-semibold
-              text-white
-              shadow-sm
-              transition-all
-              duration-200
-              hover:bg-brand-700
-              active:scale-[0.98]
-              disabled:cursor-not-allowed
-              disabled:opacity-60
-              focus-visible:outline-none
-              focus-visible:ring-2
-              focus-visible:ring-brand-500
-              focus-visible:ring-offset-2
-              dark:bg-brand-500
-              dark:hover:bg-brand-400
-              dark:focus-visible:ring-offset-slate-950
-            "
-          >
-            {isAdding ? (
-              <>
-                <Check size={15} />
-                Added
-              </>
-            ) : !stock ? (
-              "Out of stock"
-            ) : (
-              <>
-                <ShoppingCart size={15} />
-                Add to Cart
-              </>
+          {/* Cart controls */}
+
+          <div className="mt-auto pt-4">
+            {!isOutOfStock && numericStock <= 5 && (
+              <p className="mb-2 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                Only {numericStock} left
+              </p>
             )}
-          </button>
+
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={!productId || isOutOfStock || adding}
+              className="
+                flex
+                min-h-10
+                w-full
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                bg-brand-600
+                px-3
+                py-2.5
+                text-xs
+                font-semibold
+                text-white
+                shadow-sm
+                transition-all
+                duration-200
+                hover:bg-brand-700
+                active:scale-[0.98]
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-brand-500
+                focus-visible:ring-offset-2
+                dark:bg-brand-500
+                dark:hover:bg-brand-400
+                dark:focus-visible:ring-offset-slate-950
+              "
+            >
+              {adding ? (
+                <>
+                  <LoaderCircle size={15} className="animate-spin" />
+                  Adding...
+                </>
+              ) : added ? (
+                <>
+                  <Check size={15} />
+                  Added
+                </>
+              ) : isOutOfStock ? (
+                "Out of stock"
+              ) : (
+                <>
+                  <ShoppingCart size={15} />
+                  Add to Cart
+                </>
+              )}
+            </button>
+
+            {cartError && (
+              <p
+                role="alert"
+                className="mt-2 text-xs font-medium text-red-600 dark:text-red-400"
+              >
+                {cartError}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </motion.article>

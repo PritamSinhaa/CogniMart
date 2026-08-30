@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -10,284 +11,158 @@ const WishlistContext = createContext(null);
 
 const STORAGE_KEY = "cognimart-wishlist";
 
-/* =====================================================
-   WISHLIST PROVIDER
-===================================================== */
+const FALLBACK_IMAGE = "/favicon.svg";
 
-export function WishlistProvider({ children }) {
-  /* =====================================================
-     LOAD FROM LOCAL STORAGE
-  ===================================================== */
+function createWishlistItem(product) {
+  return {
+    id: String(product.id),
+    name: product.name || "Unnamed product",
+    slug: product.slug || "",
+    category: product.category || "Uncategorized",
+    brand: product.brand || "",
+    price: Number(product.price) || 0,
+    originalPrice: Number(product.originalPrice) || 0,
+    discount: Number(product.discount) || 0,
+    rating: Number(product.rating) || 0,
+    reviews: Number(product.reviews) || 0,
+    image: product.image || product.images?.[0] || FALLBACK_IMAGE,
+    stock: Math.max(Number(product.stock) || 0, 0),
+    specifications: product.specifications || {},
+  };
+}
 
-  const [wishlistItems, setWishlistItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+function loadStoredWishlist() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
 
-      console.log("📥 INITIAL LOCAL STORAGE:", saved);
-
-      if (!saved) {
-        return [];
-      }
-
-      const parsed = JSON.parse(saved);
-
-      if (!Array.isArray(parsed)) {
-        console.warn(
-          "⚠️ Wishlist data is not an array"
-        );
-
-        return [];
-      }
-
-      console.log(
-        "📦 INITIAL WISHLIST:",
-        parsed
-      );
-
-      return parsed;
-    } catch (error) {
-      console.error(
-        "❌ Failed to load wishlist:",
-        error
-      );
-
+    if (!saved) {
       return [];
     }
-  });
 
-  /* =====================================================
-     SAVE TO LOCAL STORAGE
-  ===================================================== */
+    const parsed = JSON.parse(saved);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((item) => item && item.id && item.name)
+      .map((item) => ({
+        ...item,
+        id: String(item.id),
+        price: Number(item.price) || 0,
+        originalPrice: Number(item.originalPrice) || 0,
+        rating: Number(item.rating) || 0,
+        reviews: Number(item.reviews) || 0,
+        stock: Math.max(Number(item.stock) || 0, 0),
+        image: item.image || FALLBACK_IMAGE,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export function WishlistProvider({ children }) {
+  const [wishlistItems, setWishlistItems] = useState(loadStoredWishlist);
 
   useEffect(() => {
     try {
-      const serializedWishlist =
-        JSON.stringify(wishlistItems);
-
-      localStorage.setItem(
-        STORAGE_KEY,
-        serializedWishlist
-      );
-
-      console.log(
-        "💾 SAVED TO LOCAL STORAGE:",
-        serializedWishlist
-      );
-    } catch (error) {
-      console.error(
-        "❌ Failed to save wishlist:",
-        error
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(wishlistItems));
+    } catch {
+      // Wishlist remains available in memory.
     }
   }, [wishlistItems]);
 
-  /* =====================================================
-     ADD TO WISHLIST
-  ===================================================== */
-
-  const addToWishlist = (product) => {
-    if (!product || product.id === undefined) {
-      console.error(
-        "❌ Invalid product:",
-        product
-      );
-
+  const addToWishlist = useCallback((product) => {
+    if (!product?.id) {
       return;
     }
 
     setWishlistItems((currentItems) => {
-      const exists = currentItems.some(
-        (item) =>
-          String(item.id) ===
-          String(product.id)
-      );
+      const productId = String(product.id);
+
+      const exists = currentItems.some((item) => String(item.id) === productId);
 
       if (exists) {
-        console.log(
-          "⚠️ Product already in wishlist"
-        );
-
         return currentItems;
       }
 
-      const updatedItems = [
-        ...currentItems,
-        product,
-      ];
-
-      console.log(
-        "❤️ ADDING PRODUCT:",
-        updatedItems
-      );
-
-      return updatedItems;
+      return [...currentItems, createWishlistItem(product)];
     });
-  };
+  }, []);
 
-  /* =====================================================
-     REMOVE FROM WISHLIST
-  ===================================================== */
+  const removeFromWishlist = useCallback((productId) => {
+    setWishlistItems((currentItems) =>
+      currentItems.filter((item) => String(item.id) !== String(productId)),
+    );
+  }, []);
 
-  const removeFromWishlist = (productId) => {
-    setWishlistItems((currentItems) => {
-      const updatedItems =
-        currentItems.filter(
-          (item) =>
-            String(item.id) !==
-            String(productId)
-        );
-
-      console.log(
-        "💔 REMOVED PRODUCT:",
-        updatedItems
-      );
-
-      return updatedItems;
-    });
-  };
-
-  /* =====================================================
-     TOGGLE WISHLIST
-  ===================================================== */
-
-  const toggleWishlist = (product) => {
-    if (!product || product.id === undefined) {
-      console.error(
-        "❌ Cannot toggle invalid product:",
-        product
-      );
-
+  const toggleWishlist = useCallback((product) => {
+    if (!product?.id) {
       return;
     }
 
-    console.log(
-      "🔥 TOGGLE CALLED:",
-      product.id
-    );
-
     setWishlistItems((currentItems) => {
-      console.log(
-        "📦 CURRENT ITEMS:",
-        currentItems
-      );
+      const productId = String(product.id);
 
-      const exists = currentItems.some(
-        (item) =>
-          String(item.id) ===
-          String(product.id)
-      );
-
-      console.log(
-        "🔎 PRODUCT EXISTS:",
-        exists
-      );
-
-      let updatedItems;
+      const exists = currentItems.some((item) => String(item.id) === productId);
 
       if (exists) {
-        updatedItems =
-          currentItems.filter(
-            (item) =>
-              String(item.id) !==
-              String(product.id)
-          );
-
-        console.log(
-          "💔 REMOVING FROM WISHLIST"
-        );
-      } else {
-        updatedItems = [
-          ...currentItems,
-          product,
-        ];
-
-        console.log(
-          "❤️ ADDING TO WISHLIST"
-        );
+        return currentItems.filter((item) => String(item.id) !== productId);
       }
 
-      console.log(
-        "✅ NEW WISHLIST:",
-        updatedItems
-      );
-
-      return updatedItems;
+      return [...currentItems, createWishlistItem(product)];
     });
-  };
+  }, []);
 
-  /* =====================================================
-     CHECK WISHLIST
-  ===================================================== */
-
-  const isInWishlist = (productId) => {
-    return wishlistItems.some(
-      (item) =>
-        String(item.id) ===
-        String(productId)
-    );
-  };
-
-  /* =====================================================
-     CLEAR WISHLIST
-  ===================================================== */
-
-  const clearWishlist = () => {
-    console.log(
-      "🗑️ CLEARING WISHLIST"
-    );
-
-    setWishlistItems([]);
-  };
-
-  /* =====================================================
-     COUNT
-  ===================================================== */
-
-  const wishlistCount = useMemo(
-    () => wishlistItems.length,
-    [wishlistItems]
+  const isInWishlist = useCallback(
+    (productId) => {
+      return wishlistItems.some(
+        (item) => String(item.id) === String(productId),
+      );
+    },
+    [wishlistItems],
   );
 
-  /* =====================================================
-     CONTEXT VALUE
-  ===================================================== */
+  const clearWishlist = useCallback(() => {
+    setWishlistItems([]);
+  }, []);
 
-  const value = {
-    wishlistItems,
-    wishlistCount,
+  const wishlistCount = wishlistItems.length;
 
-    addToWishlist,
-    removeFromWishlist,
-    toggleWishlist,
-    isInWishlist,
-    clearWishlist,
-  };
-
-  /* =====================================================
-     PROVIDER
-  ===================================================== */
+  const value = useMemo(
+    () => ({
+      wishlistItems,
+      wishlistCount,
+      addToWishlist,
+      removeFromWishlist,
+      toggleWishlist,
+      isInWishlist,
+      clearWishlist,
+    }),
+    [
+      wishlistItems,
+      wishlistCount,
+      addToWishlist,
+      removeFromWishlist,
+      toggleWishlist,
+      isInWishlist,
+      clearWishlist,
+    ],
+  );
 
   return (
-    <WishlistContext.Provider
-      value={value}
-    >
+    <WishlistContext.Provider value={value}>
       {children}
     </WishlistContext.Provider>
   );
 }
 
-/* =====================================================
-   CUSTOM HOOK
-===================================================== */
-
 export function useWishlist() {
-  const context =
-    useContext(WishlistContext);
+  const context = useContext(WishlistContext);
 
   if (!context) {
-    throw new Error(
-      "useWishlist must be used inside WishlistProvider"
-    );
+    throw new Error("useWishlist must be used inside WishlistProvider");
   }
 
   return context;
