@@ -376,6 +376,23 @@ export const deactivateProduct = async (productId) => {
   return product;
 };
 
+export const getAdminProductById =
+  async (productId) => {
+    const product =
+      await Product.findById(
+        productId,
+      );
+
+    if (!product) {
+      throw new AppError(
+        "Product not found",
+        404,
+      );
+    }
+
+    return product;
+  };
+
 // ===============================
 // ACTIVATE PRODUCT
 // ===============================

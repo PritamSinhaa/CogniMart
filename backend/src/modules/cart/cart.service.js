@@ -2,12 +2,35 @@ import Cart from "../../models/Cart.model.js";
 import Product from "../../models/Product.model.js";
 import AppError from "../../utils/AppError.js";
 
-export const addToCartService = async (
-  userId,
-  productId,
-  quantity
-) => {
-  const product = await Product.findById(productId);
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
+
+const populateCart = async (cartId) => {
+  return Cart.findById(cartId)
+    .populate({
+      path: "items.product",
+      select: "name slug price discount images stock category brand isActive",
+      populate: {
+        path: "category",
+        select: "name slug",
+      },
+    })
+    .lean();
+};
+
+/*
+|--------------------------------------------------------------------------
+| Add item
+|--------------------------------------------------------------------------
+*/
+
+export const addToCartService = async (userId, productId, quantity) => {
+  const product = await Product.findById(productId).select(
+    "name stock isActive",
+  );
 
   if (!product) {
     throw new AppError("Product not found", 404);
@@ -17,14 +40,20 @@ export const addToCartService = async (
     throw new AppError("Product is not available", 400);
   }
 
+  if (product.stock < 1) {
+    throw new AppError("Product is out of stock", 400);
+  }
+
   if (quantity > product.stock) {
     throw new AppError(
-      `Only ${product.stock} items are available`,
-      400
+      `Only ${product.stock} units of ${product.name} are available`,
+      400,
     );
   }
 
-  let cart = await Cart.findOne({ user: userId });
+  let cart = await Cart.findOne({
+    user: userId,
+  });
 
   if (!cart) {
     cart = await Cart.create({
@@ -37,11 +66,11 @@ export const addToCartService = async (
       ],
     });
 
-    return cart;
+    return populateCart(cart._id);
   }
 
   const existingItem = cart.items.find(
-    (item) => item.product.toString() === productId
+    (item) => item.product.toString() === productId.toString(),
   );
 
   if (existingItem) {
@@ -49,8 +78,8 @@ export const addToCartService = async (
 
     if (newQuantity > product.stock) {
       throw new AppError(
-        `Only ${product.stock} items are available`,
-        400
+        `Only ${product.stock} units of ${product.name} are available`,
+        400,
       );
     }
 
@@ -64,17 +93,32 @@ export const addToCartService = async (
 
   await cart.save();
 
-  return cart;
+  return populateCart(cart._id);
 };
 
+/*
+|--------------------------------------------------------------------------
+| Get cart
+|--------------------------------------------------------------------------
+*/
 
 export const getCartService = async (userId) => {
   const cart = await Cart.findOne({
     user: userId,
-  }).populate("items.product");
+  })
+    .populate({
+      path: "items.product",
+      select: "name slug price discount images stock category brand isActive",
+      populate: {
+        path: "category",
+        select: "name slug",
+      },
+    })
+    .lean();
 
   if (!cart) {
     return {
+      user: userId,
       items: [],
     };
   }
@@ -82,70 +126,66 @@ export const getCartService = async (userId) => {
   return cart;
 };
 
-export const updateCartItemService = async (
-  userId,
-  productId,
-  quantity
-) => {
-  // 1. Find user's cart
-  const cart = await Cart.findOne({
-    user: userId,
-  });
+/*
+|--------------------------------------------------------------------------
+| Update quantity
+|--------------------------------------------------------------------------
+*/
 
-  // 2. Cart doesn't exist
+export const updateCartItemService = async (userId, productId, quantity) => {
+  const [cart, product] = await Promise.all([
+    Cart.findOne({
+      user: userId,
+    }),
+
+    Product.findById(productId).select("name stock isActive"),
+  ]);
+
   if (!cart) {
     throw new AppError("Cart not found", 404);
   }
 
-  // 3. Find product
-  const product = await Product.findById(productId);
-
-  // 4. Product doesn't exist
   if (!product) {
     throw new AppError("Product not found", 404);
   }
 
-  // 5. Product isn't available
   if (!product.isActive) {
     throw new AppError("Product is not available", 400);
   }
 
-  // 6. Check stock
+  if (product.stock < 1) {
+    throw new AppError("Product is out of stock", 400);
+  }
+
   if (quantity > product.stock) {
     throw new AppError(
-      `Only ${product.stock} items are available`,
-      400
+      `Only ${product.stock} units of ${product.name} are available`,
+      400,
     );
   }
 
-  // 7. Find product inside cart
   const existingItem = cart.items.find(
-    (item) => item.product.equals(productId)
+    (item) => item.product.toString() === productId.toString(),
   );
 
-  // 8. Product isn't in cart
   if (!existingItem) {
-    throw new AppError(
-      "Product is not in your cart",
-      404
-    );
+    throw new AppError("Product is not in your cart", 404);
   }
 
-  // 9. Update quantity
   existingItem.quantity = quantity;
 
-  // 10. Save cart
   await cart.save();
 
-  // 11. Return updated cart
-  return cart;
+  return populateCart(cart._id);
 };
 
-export const removeCartItemService = async (
-  userId,
-  productId
-) => {
-  // 1. Find user's cart
+/*
+|--------------------------------------------------------------------------
+| Remove item
+|--------------------------------------------------------------------------
+*/
+
+export const removeCartItemService = async (userId, productId) => {
   const cart = await Cart.findOne({
     user: userId,
   });
@@ -154,41 +194,48 @@ export const removeCartItemService = async (
     throw new AppError("Cart not found", 404);
   }
 
-  // 2. Check if product exists in cart
   const itemExists = cart.items.some(
-    (item) => item.product.equals(productId)
+    (item) => item.product.toString() === productId.toString(),
   );
 
   if (!itemExists) {
-    throw new AppError(
-      "Product is not in your cart",
-      404
-    );
+    throw new AppError("Product is not in your cart", 404);
   }
 
-  // 3. Remove item
   cart.items = cart.items.filter(
-    (item) => !item.product.equals(productId)
+    (item) => item.product.toString() !== productId.toString(),
   );
 
-  // 4. Save
   await cart.save();
 
-  return cart;
+  return populateCart(cart._id);
 };
+
+/*
+|--------------------------------------------------------------------------
+| Clear cart
+|--------------------------------------------------------------------------
+*/
 
 export const clearCartService = async (userId) => {
   const cart = await Cart.findOne({
     user: userId,
   });
 
+  /*
+   * Clearing an already-empty/nonexistent cart should be
+   * idempotent, not a 404 error.
+   */
   if (!cart) {
-    throw new AppError("Cart not found", 404);
+    return {
+      user: userId,
+      items: [],
+    };
   }
 
   cart.items = [];
 
   await cart.save();
 
-  return cart;
+  return populateCart(cart._id);
 };

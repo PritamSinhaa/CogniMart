@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   createProductController,
   deleteProductController,
+  getAdminProductByIdController,
   getAdminProductsController,
   getProductByIdController,
   getProductsController,
@@ -35,6 +36,18 @@ router.get(
   asyncHandler(getAdminProductsController),
 );
 
+router.get(
+  "/admin/:id",
+  isAuthenticated,
+  authorize("admin"),
+  validate(
+    productIdSchema,
+    "params",
+  ),
+  asyncHandler(
+    getAdminProductByIdController,
+  ),
+);
 /*
  * Public active product list
  */

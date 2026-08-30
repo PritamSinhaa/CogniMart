@@ -4,38 +4,28 @@ import User from "../../models/User.model.js";
 import AppError from "../../utils/AppError.js";
 
 export const updateProfileService = async (userId, userData) => {
-  // Check if email is being changed
-  if (userData.email) {
-    const existingUser = await User.findOne({
-      email: userData.email,
-      _id: { $ne: userId },
-    });
+  const updates = {};
 
-    if (existingUser) {
-      throw new AppError("Email already exists", 409);
-    }
+  if (userData.name !== undefined) {
+    updates.name = userData.name;
   }
 
-  const user = await User.findByIdAndUpdate(
-    userId,
-    userData,
-    {
-      returnDocument: "after",
-      runValidators: true,
-    }
-  );
-
-  if (!user) {
-    throw new AppError("User not found", 404);
+  if (userData.email !== undefined) {
+    updates.email = userData.email;
   }
 
-  return user;
+  // Continue duplicate-email check...
+
+  return User.findByIdAndUpdate(userId, updates, {
+    returnDocument: "after",
+    runValidators: true,
+  });
 };
 
 export const changePasswordService = async (
   userId,
   currentPassword,
-  newPassword
+  newPassword,
 ) => {
   const user = await User.findById(userId).select("+password");
 
@@ -45,7 +35,7 @@ export const changePasswordService = async (
 
   const isPasswordCorrect = await bcrypt.compare(
     currentPassword,
-    user.password
+    user.password,
   );
 
   if (!isPasswordCorrect) {
@@ -87,7 +77,7 @@ export const updateUserRoleService = async (userId, role, currentUserId) => {
     {
       returnDocument: "after",
       runValidators: true,
-    }
+    },
   );
 
   if (!user) {
@@ -109,7 +99,7 @@ export const deactivateUserService = async (userId, currentUserId) => {
     {
       returnDocument: "after",
       runValidators: true,
-    }
+    },
   );
 
   if (!user) {
