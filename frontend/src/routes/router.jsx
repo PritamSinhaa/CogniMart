@@ -78,118 +78,118 @@ const router = createBrowserRouter([
    * MainLayout provides the customer navbar, page content
    * and footer through its <Outlet />.
    */
- {
-  path: "/",
-  element: <MainLayout />,
+  {
+    path: "/",
+    element: <MainLayout />,
 
-  children: [
-    /*
-     * Pages that display the footer
-     */
-    {
-      element: <FooterLayout />,
+    children: [
+      /*
+       * Pages that display the footer
+       */
+      {
+        element: <FooterLayout />,
 
-      children: [
-        {
-          index: true,
-          element: <App />,
-        },
-        {
-          path: "products",
-          element: <Products />,
-        },
-        {
-          path: "products/:id",
-          element: <ProductDetails />,
-        },
-        {
-          path: "categories",
-          element: <Categories />,
-        },
-        {
-          path: "deals",
-          element: <Deals />,
-        },
-      ],
-    },
+        children: [
+          {
+            index: true,
+            element: <App />,
+          },
+          {
+            path: "products",
+            element: <Products />,
+          },
+          {
+            path: "products/:id",
+            element: <ProductDetails />,
+          },
+          {
+            path: "categories",
+            element: <Categories />,
+          },
+          {
+            path: "deals",
+            element: <Deals />,
+          },
+        ],
+      },
 
-    /*
-     * Pages without the footer
-     */
-    {
-      path: "cart",
-      element: <Cart />,
-    },
-    {
-      path: "wishlist",
-      element: <Wishlist />,
-    },
-    {
-      path: "login",
-      element: <Login />,
-    },
-    {
-      path: "register",
-      element: <Register />,
-    },
-    {
-      path: "forgot-password",
-      element: <ForgotPassword />,
-    },
-    {
-      path: "reset-password",
-      element: <ResetPassword />,
-    },
-    {
-      path: "ai-assistant",
-      element: <AIAssistant />,
-    },
+      /*
+       * Pages without the footer
+       */
+      {
+        path: "cart",
+        element: <Cart />,
+      },
+      {
+        path: "wishlist",
+        element: <Wishlist />,
+      },
+      {
+        path: "login",
+        element: <Login />,
+      },
+      {
+        path: "register",
+        element: <Register />,
+      },
+      {
+        path: "forgot-password",
+        element: <ForgotPassword />,
+      },
+      {
+        path: "reset-password",
+        element: <ResetPassword />,
+      },
+      {
+        path: "ai-assistant",
+        element: <AIAssistant />,
+      },
 
-    /*
-     * Protected pages without footer
-     */
-    {
-      path: "checkout",
-      element: (
-        <ProtectedRoute>
-          <Checkout />
-        </ProtectedRoute>
-      ),
-    },
-    {
-      path: "orders",
-      element: (
-        <ProtectedRoute>
-          <Orders />
-        </ProtectedRoute>
-      ),
-    },
-    {
-      path: "orders/:orderId",
-      element: (
-        <ProtectedRoute>
-          <OrderDetails />
-        </ProtectedRoute>
-      ),
-    },
-    {
-      path: "order-success",
-      element: (
-        <ProtectedRoute>
-          <OrderSuccess />
-        </ProtectedRoute>
-      ),
-    },
-    {
-      path: "account/profile",
-      element: (
-        <ProtectedRoute>
-          <Profile />
-        </ProtectedRoute>
-      ),
-    },
-  ],
-},
+      /*
+       * Protected pages without footer
+       */
+      {
+        path: "checkout",
+        element: (
+          <ProtectedRoute>
+            <Checkout />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "orders",
+        element: (
+          <ProtectedRoute>
+            <Orders />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "orders/:orderId",
+        element: (
+          <ProtectedRoute>
+            <OrderDetails />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "order-success/:orderId",
+        element: (
+          <ProtectedRoute>
+            <OrderSuccess />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "account/profile",
+        element: (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        ),
+      },
+    ],
+  },
   /*
    * ADMIN ROUTES
    *

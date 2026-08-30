@@ -119,11 +119,10 @@ export default function Checkout() {
        */
       await refreshCart();
 
-      navigate("/order-success", {
+      navigate(`/order-success/${order._id}`, {
         replace: true,
         state: {
           order,
-          orderId: order?._id || null,
         },
       });
     } catch (error) {
