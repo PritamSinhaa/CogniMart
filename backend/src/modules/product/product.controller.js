@@ -1,58 +1,89 @@
 import {
   createProduct,
-  getProducts,
-  getProductById,
-  updateProduct,
   deleteProduct,
+  getAdminProducts,
+  getProductById,
+  getProducts,
+  updateProduct,
 } from "./product.service.js";
 
+export const createProductController =
+  async (req, res) => {
+    const product =
+      await createProduct(req.body);
 
-export const createProductController = async (req, res) => {
-  const product = await createProduct(req.body);
+    return res.status(201).json({
+      success: true,
+      message:
+        "Product created successfully",
+      data: product,
+    });
+  };
 
-  res.status(201).json({
-    success: true,
-    message: "Product created successfully",
-    data: product,
-  });
-};
+export const getProductsController =
+  async (req, res) => {
+    const result =
+      await getProducts(req.query);
 
-export const getProductsController = async (req, res) => {
-  const result = await getProducts(req.query);
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  };
 
-  return res.status(200).json({
-    success: true,
-    data: result,
-  });
-};
+export const getAdminProductsController =
+  async (req, res) => {
+    const result =
+      await getAdminProducts(
+        req.query,
+      );
 
-export const getProductByIdController = async (req, res) => {
-  const product = await getProductById(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  };
 
-  res.status(200).json({
-    success: true,
-    data: product,
-  });
-};
+export const getProductByIdController =
+  async (req, res) => {
+    const product =
+      await getProductById(
+        req.params.id,
+      );
 
-export const updateProductController = async (req, res) => {
-  const product = await updateProduct(
-    req.params.id,
-    req.body
-  );
+    return res.status(200).json({
+      success: true,
+      data: product,
+    });
+  };
 
-  res.status(200).json({
-    success: true,
-    message: "Product updated successfully",
-    data: product,
-  });
-};
+export const updateProductController =
+  async (req, res) => {
+    const product =
+      await updateProduct(
+        req.params.id,
+        req.body,
+      );
 
-export const deleteProductController = async (req, res) => {
-  await deleteProduct(req.params.id);
+    return res.status(200).json({
+      success: true,
+      message:
+        "Product updated successfully",
+      data: product,
+    });
+  };
 
-  res.status(200).json({
-    success: true,
-    message: "Product deleted successfully",
-  });
-};
+export const deleteProductController =
+  async (req, res) => {
+    const product =
+      await deleteProduct(
+        req.params.id,
+      );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Product deactivated successfully",
+      data: product,
+    });
+  };

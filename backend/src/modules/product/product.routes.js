@@ -2,59 +2,85 @@ import { Router } from "express";
 
 import {
   createProductController,
-  getProductsController,
-  getProductByIdController,
-  updateProductController,
   deleteProductController,
+  getAdminProductsController,
+  getProductByIdController,
+  getProductsController,
+  updateProductController,
 } from "./product.controller.js";
 
 import {
   createProductSchema,
-  updateProductSchema,
   productIdSchema,
+  updateProductSchema,
 } from "./product.validation.js";
 
 import isAuthenticated from "../../middleware/isAuthenticated.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
 import validate from "../../middleware/validate.middleware.js";
+
 import asyncHandler from "../../utils/asyncHandler.js";
 
 const router = Router();
 
+/*
+ * Admin product list
+ *
+ * This route must appear before /:id.
+ */
 router.get(
-  "/",
-  asyncHandler(getProductsController)
+  "/admin/all",
+  isAuthenticated,
+  authorize("admin"),
+  asyncHandler(getAdminProductsController),
 );
 
-router.get(
-  "/:id",
-  validate(productIdSchema, "params"),
-  asyncHandler(getProductByIdController)
-);
+/*
+ * Public active product list
+ */
+router.get("/", asyncHandler(getProductsController));
 
+/*
+ * Create product
+ */
 router.post(
   "/",
   isAuthenticated,
   authorize("admin"),
   validate(createProductSchema),
-  asyncHandler(createProductController)
+  asyncHandler(createProductController),
 );
 
+/*
+ * Public active product details
+ */
+router.get(
+  "/:id",
+  validate(productIdSchema, "params"),
+  asyncHandler(getProductByIdController),
+);
+
+/*
+ * Update or reactivate product
+ */
 router.patch(
   "/:id",
   isAuthenticated,
   authorize("admin"),
   validate(productIdSchema, "params"),
   validate(updateProductSchema),
-  asyncHandler(updateProductController)
+  asyncHandler(updateProductController),
 );
 
+/*
+ * Soft-delete product
+ */
 router.delete(
   "/:id",
   isAuthenticated,
   authorize("admin"),
   validate(productIdSchema, "params"),
-  asyncHandler(deleteProductController)
+  asyncHandler(deleteProductController),
 );
 
 export default router;

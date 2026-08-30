@@ -1,7 +1,6 @@
 import Product from "../../models/Product.model.js";
 import AppError from "../../utils/AppError.js";
 
-
 // ===============================
 // CREATE PRODUCT
 // ===============================
@@ -54,12 +53,11 @@ export const createProduct = async (productData) => {
   return product;
 };
 
-
 // ===============================
 // GET ALL PRODUCTS
 // ===============================
 
-export const getProducts = async (filters = {}) => {
+export const getProducts = async (filters = {}, includeInactive = false) => {
   const {
     category,
     brand,
@@ -76,7 +74,16 @@ export const getProducts = async (filters = {}) => {
     sort = "newest",
   } = filters;
 
-  const query = {};
+  /*
+   * Customer requests always receive active products.
+   *
+   * Admin requests can see active and inactive products.
+   */
+  const query = includeInactive
+    ? {}
+    : {
+        isActive: true,
+      };
 
   // ==========================================
   // CATEGORY FILTER
@@ -98,8 +105,8 @@ export const getProducts = async (filters = {}) => {
   // ACTIVE FILTER
   // ==========================================
 
-  if (isActive !== undefined) {
-    query.isActive = isActive;
+  if (includeInactive && isActive !== undefined) {
+    query.isActive = isActive === true || isActive === "true";
   }
 
   // ==========================================
@@ -150,13 +157,9 @@ export const getProducts = async (filters = {}) => {
   // ==========================================
 
   const currentPage = Math.max(Number(page), 1);
-  const itemsPerPage = Math.min(
-    Math.max(Number(limit), 1),
-    100
-  );
+  const itemsPerPage = Math.min(Math.max(Number(limit), 1), 100);
 
-  const skip =
-    (currentPage - 1) * itemsPerPage;
+  const skip = (currentPage - 1) * itemsPerPage;
 
   // ==========================================
   // SORTING
@@ -195,8 +198,7 @@ export const getProducts = async (filters = {}) => {
   // GET TOTAL
   // ==========================================
 
-  const totalProducts =
-    await Product.countDocuments(query);
+  const totalProducts = await Product.countDocuments(query);
 
   // ==========================================
   // GET PRODUCTS
@@ -211,9 +213,7 @@ export const getProducts = async (filters = {}) => {
   // PAGINATION INFORMATION
   // ==========================================
 
-  const totalPages = Math.ceil(
-    totalProducts / itemsPerPage
-  );
+  const totalPages = Math.ceil(totalProducts / itemsPerPage);
 
   return {
     products,
@@ -224,29 +224,39 @@ export const getProducts = async (filters = {}) => {
       totalProducts,
       totalPages,
 
-      hasNextPage:
-        currentPage < totalPages,
+      hasNextPage: currentPage < totalPages,
 
-      hasPreviousPage:
-        currentPage > 1,
+      hasPreviousPage: currentPage > 1,
     },
   };
 };
+
+export const getAdminProducts = async (filters = {}) => {
+  return getProducts(filters, true);
+};
+
 // ===============================
 // GET PRODUCT BY ID
 // ===============================
 
-export const getProductById = async (productId) => {
-  const product = await Product.findById(productId);
+export const getProductById = async (
+  productId,
+) => {
+  const product =
+    await Product.findOne({
+      _id: productId,
+      isActive: true,
+    });
 
   if (!product) {
-    throw new AppError("Product not found", 404);
+    throw new AppError(
+      "Product not found",
+      404,
+    );
   }
 
   return product;
 };
-
-
 // ===============================
 // GET PRODUCT BY SLUG
 // ===============================
@@ -263,15 +273,11 @@ export const getProductBySlug = async (slug) => {
   return product;
 };
 
-
 // ===============================
 // UPDATE PRODUCT
 // ===============================
 
-export const updateProduct = async (
-  productId,
-  productData
-) => {
+export const updateProduct = async (productId, productData) => {
   // Check product exists
   const existingProduct = await Product.findById(productId);
 
@@ -289,10 +295,7 @@ export const updateProduct = async (
     });
 
     if (duplicateSlug) {
-      throw new AppError(
-        "Product with this slug already exists",
-        409
-      );
+      throw new AppError("Product with this slug already exists", 409);
     }
   }
 
@@ -306,21 +309,14 @@ export const updateProduct = async (
     });
 
     if (duplicateSku) {
-      throw new AppError(
-        "Product with this SKU already exists",
-        409
-      );
+      throw new AppError("Product with this SKU already exists", 409);
     }
   }
 
-  const product = await Product.findByIdAndUpdate(
-    productId,
-    productData,
-    {
-      returnDocument: "after",
-      runValidators: true,
-    }
-  );
+  const product = await Product.findByIdAndUpdate(productId, productData, {
+    returnDocument: "after",
+    runValidators: true,
+  });
 
   if (!product) {
     throw new AppError("Product not found", 404);
@@ -329,24 +325,34 @@ export const updateProduct = async (
   return product;
 };
 
-
 // ===============================
 // DELETE PRODUCT
 // ===============================
 
-export const deleteProduct = async (productId) => {
-  const product = await Product.findById(productId);
+export const deleteProduct = async (
+  productId,
+) => {
+  const product =
+    await Product.findByIdAndUpdate(
+      productId,
+      {
+        isActive: false,
+      },
+      {
+        returnDocument: "after",
+        runValidators: true,
+      },
+    );
 
   if (!product) {
-    throw new AppError("Product not found", 404);
+    throw new AppError(
+      "Product not found",
+      404,
+    );
   }
 
-  await Product.findByIdAndDelete(productId);
-
-  return true;
+  return product;
 };
-
-
 // ===============================
 // DEACTIVATE PRODUCT
 // ===============================
@@ -360,7 +366,7 @@ export const deactivateProduct = async (productId) => {
     {
       returnDocument: "after",
       runValidators: true,
-    }
+    },
   );
 
   if (!product) {
@@ -369,7 +375,6 @@ export const deactivateProduct = async (productId) => {
 
   return product;
 };
-
 
 // ===============================
 // ACTIVATE PRODUCT
@@ -384,7 +389,7 @@ export const activateProduct = async (productId) => {
     {
       returnDocument: "after",
       runValidators: true,
-    }
+    },
   );
 
   if (!product) {
