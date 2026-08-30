@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 
-import Order from "../../models/Order.model.js";
-import Cart from "../../models/Cart.model.js";
-import Product from "../../models/Product.model.js";
 import Address from "../../models/Address.model.js";
+import Cart from "../../models/Cart.model.js";
 import Coupon from "../../models/Coupon.model.js";
+import Order from "../../models/Order.model.js";
+import Product from "../../models/Product.model.js";
 
 import AppError from "../../utils/AppError.js";
 import calculateDiscountedPrice from "../../utils/calculateDiscountedPrice.js";
@@ -13,25 +13,91 @@ import {
   applyCouponService,
 } from "../coupon/coupon.service.js";
 
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
 
-// ==================================================
-// CREATE ORDER
-// ==================================================
+const ORDER_PRODUCT_POPULATE = {
+  path: "items.product",
+  select: "name images slug",
+};
+
+function calculateShippingFee(subtotal) {
+  return subtotal >= 1000 ? 0 : 50;
+}
+
+function roundMoney(value) {
+  return Number(Number(value).toFixed(2));
+}
+
+async function restoreOrderStock(
+  order,
+  session,
+) {
+  for (const item of order.items) {
+    const updatedProduct =
+      await Product.findByIdAndUpdate(
+        item.product,
+        {
+          $inc: {
+            stock: item.quantity,
+          },
+        },
+        {
+          session,
+          new: true,
+        },
+      );
+
+    /*
+     * Do not fail cancellation if a product was
+     * permanently deleted after the order.
+     */
+    if (!updatedProduct) {
+      console.warn(
+        `Could not restore stock for deleted product ${item.product}`,
+      );
+    }
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Create order
+|--------------------------------------------------------------------------
+*/
 
 export const createOrderService = async (
   userId,
   addressId,
   paymentMethod,
-  couponCode = null
+  couponCode = null,
 ) => {
-  const session = await mongoose.startSession();
+  /*
+   * The normal order endpoint currently completes
+   * only COD orders. Online orders must go through
+   * the Razorpay creation and verification flow.
+   */
+  if (paymentMethod === "online") {
+    throw new AppError(
+      "Online payment is not available yet",
+      400,
+    );
+  }
+
+  const session =
+    await mongoose.startSession();
 
   try {
     session.startTransaction();
 
-    // ==========================================
-    // GET ADDRESS
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Verify address ownership
+    |--------------------------------------------------------------------------
+    */
 
     const address = await Address.findOne({
       _id: addressId,
@@ -41,14 +107,15 @@ export const createOrderService = async (
     if (!address) {
       throw new AppError(
         "Address not found",
-        404
+        404,
       );
     }
 
-
-    // ==========================================
-    // GET CART
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Load database cart
+    |--------------------------------------------------------------------------
+    */
 
     const cart = await Cart.findOne({
       user: userId,
@@ -56,283 +123,238 @@ export const createOrderService = async (
       .populate("items.product")
       .session(session);
 
-    if (!cart || cart.items.length === 0) {
+    if (
+      !cart ||
+      !Array.isArray(cart.items) ||
+      cart.items.length === 0
+    ) {
       throw new AppError(
         "Cart is empty",
-        400
+        400,
       );
     }
 
-
-    // ==========================================
-    // PREPARE ORDER ITEMS
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Build order snapshot
+    |--------------------------------------------------------------------------
+    */
 
     const orderItems = [];
-
     let subtotal = 0;
 
-
-    // ==========================================
-    // CHECK PRODUCTS + STOCK
-    // ==========================================
-
-    for (const item of cart.items) {
-      const product = item.product;
+    for (const cartItem of cart.items) {
+      const product = cartItem.product;
 
       if (!product) {
         throw new AppError(
-          "Product in cart no longer exists",
-          400
+          "A product in your cart no longer exists",
+          400,
         );
       }
-
-
-      // ========================================
-      // PRODUCT MUST BE ACTIVE
-      // ========================================
 
       if (!product.isActive) {
         throw new AppError(
           `${product.name} is no longer available`,
-          400
+          400,
         );
       }
 
+      if (product.stock < 1) {
+        throw new AppError(
+          `${product.name} is out of stock`,
+          400,
+        );
+      }
 
-      // ========================================
-      // CHECK STOCK
-      // ========================================
-
-      if (item.quantity > product.stock) {
+      if (
+        cartItem.quantity >
+        product.stock
+      ) {
         throw new AppError(
           `Only ${product.stock} units of ${product.name} are available`,
-          400
+          400,
         );
       }
 
-
-      // ========================================
-      // CALCULATE FINAL PRODUCT PRICE
-      // ========================================
-
-      const finalPrice =
+      const finalPrice = roundMoney(
         calculateDiscountedPrice(
           product.price,
-          product.discount
-        );
+          product.discount,
+        ),
+      );
 
-
-      // ========================================
-      // CALCULATE ITEM SUBTOTAL
-      // ========================================
-
-      const itemSubtotal =
-        finalPrice * item.quantity;
-
-
-      // ========================================
-      // ADD ORDER ITEM
-      // ========================================
+      const itemSubtotal = roundMoney(
+        finalPrice *
+          cartItem.quantity,
+      );
 
       orderItems.push({
         product: product._id,
         name: product.name,
         price: finalPrice,
-        quantity: item.quantity,
+        quantity: cartItem.quantity,
         subtotal: itemSubtotal,
       });
-
 
       subtotal += itemSubtotal;
     }
 
+    subtotal = roundMoney(subtotal);
 
-    // ==========================================
-    // SHIPPING FEE
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Shipping
+    |--------------------------------------------------------------------------
+    */
 
     const shippingFee =
-      subtotal >= 1000
-        ? 0
-        : 50;
+      calculateShippingFee(subtotal);
 
-
-    // ==========================================
-    // COUPON DISCOUNT
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Coupon
+    |--------------------------------------------------------------------------
+    */
 
     let discount = 0;
-
     let appliedCoupon = null;
 
     if (couponCode) {
       const couponResult =
         await applyCouponService(
           couponCode,
-          subtotal
+          subtotal,
         );
 
-      discount =
-        couponResult.discount;
+      discount = roundMoney(
+        couponResult.discount || 0,
+      );
 
       appliedCoupon =
-        couponResult.coupon;
+        couponResult.coupon || null;
     }
 
+    if (discount > subtotal) {
+      discount = subtotal;
+    }
 
-    // ==========================================
-    // FINAL TOTAL
-    // ==========================================
-
-    const total =
+    const total = roundMoney(
       subtotal +
-      shippingFee -
-      discount;
-
-
-    // ==========================================
-    // SAFETY CHECK
-    // ==========================================
+        shippingFee -
+        discount,
+    );
 
     if (total < 0) {
       throw new AppError(
         "Invalid order total",
-        400
+        400,
       );
     }
 
-
-    // ==========================================
-    // SNAPSHOT SHIPPING ADDRESS
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Snapshot address
+    |--------------------------------------------------------------------------
+    */
 
     const shippingAddress = {
-      fullName:
-        address.fullName,
-
-      phone:
-        address.phone,
-
+      fullName: address.fullName,
+      phone: address.phone,
       addressLine1:
         address.addressLine1,
-
       addressLine2:
         address.addressLine2 || "",
-
-      city:
-        address.city,
-
-      state:
-        address.state,
-
+      city: address.city,
+      state: address.state,
       postalCode:
         address.postalCode,
-
-      country:
-        address.country,
+      country: address.country,
     };
 
+    /*
+    |--------------------------------------------------------------------------
+    | Create order
+    |--------------------------------------------------------------------------
+    */
 
-    // ==========================================
-    // CREATE ORDER
-    // ==========================================
-
-    const [order] =
-      await Order.create(
-        [
-          {
-            user: userId,
-
-            items: orderItems,
-
-            shippingAddress,
-
-            subtotal,
-
-            discount,
-
-            couponCode:
-              appliedCoupon?.code || null,
-
-            shippingFee,
-
-            total,
-
-            orderStatus:
-              "pending",
-
-            paymentStatus:
-              "pending",
-
-            paymentMethod,
-          },
-        ],
+    const [order] = await Order.create(
+      [
         {
-          session,
-        }
-      );
+          user: userId,
+          items: orderItems,
+          shippingAddress,
+          subtotal,
+          discount,
+          couponCode:
+            appliedCoupon?.code || null,
+          shippingFee,
+          total,
+          orderStatus: "pending",
+          paymentStatus: "pending",
+          paymentMethod,
+        },
+      ],
+      {
+        session,
+      },
+    );
 
+    /*
+    |--------------------------------------------------------------------------
+    | Reduce stock atomically
+    |--------------------------------------------------------------------------
+    */
 
-    // ==========================================
-    // REDUCE PRODUCT STOCK
-    // ==========================================
-
-    for (const item of cart.items) {
+    for (const cartItem of cart.items) {
       const product =
-        item.product;
+        cartItem.product;
 
       const updatedProduct =
         await Product.findOneAndUpdate(
           {
             _id: product._id,
-
+            isActive: true,
             stock: {
-              $gte:
-                item.quantity,
+              $gte: cartItem.quantity,
             },
           },
-
           {
             $inc: {
               stock:
-                -item.quantity,
+                -cartItem.quantity,
             },
           },
-
           {
             new: true,
             session,
-          }
+          },
         );
 
       if (!updatedProduct) {
         throw new AppError(
-          `Unable to update stock for ${product.name}`,
-          400
+          `Unable to reserve stock for ${product.name}`,
+          409,
         );
       }
     }
 
-
-    // ==========================================
-    // INCREMENT COUPON USAGE
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Increment coupon usage atomically
+    |--------------------------------------------------------------------------
+    */
 
     if (appliedCoupon) {
       const updatedCoupon =
         await Coupon.findOneAndUpdate(
           {
-            _id:
-              appliedCoupon._id,
-
+            _id: appliedCoupon._id,
             isActive: true,
-
             $or: [
               {
                 usageLimit: null,
               },
-
               {
                 $expr: {
                   $lt: [
@@ -343,31 +365,30 @@ export const createOrderService = async (
               },
             ],
           },
-
           {
             $inc: {
               usedCount: 1,
             },
           },
-
           {
             new: true,
             session,
-          }
+          },
         );
 
       if (!updatedCoupon) {
         throw new AppError(
           "Coupon usage limit has been reached",
-          400
+          409,
         );
       }
     }
 
-
-    // ==========================================
-    // CLEAR CART
-    // ==========================================
+    /*
+    |--------------------------------------------------------------------------
+    | Clear database cart
+    |--------------------------------------------------------------------------
+    */
 
     cart.items = [];
 
@@ -375,91 +396,75 @@ export const createOrderService = async (
       session,
     });
 
-
-    // ==========================================
-    // COMMIT TRANSACTION
-    // ==========================================
-
     await session.commitTransaction();
 
-
-    // ==========================================
-    // RETURN ORDER
-    // ==========================================
-
     return order;
-
   } catch (error) {
-
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
 
     throw error;
-
   } finally {
-
     await session.endSession();
-
   }
 };
 
-
-// ==================================================
-// GET MY ORDERS
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Get logged-in user's orders
+|--------------------------------------------------------------------------
+*/
 
 export const getMyOrdersService = async (
-  userId
+  userId,
 ) => {
-  const orders =
-    await Order.find({
-      user: userId,
+  return Order.find({
+    user: userId,
+  })
+    .populate(ORDER_PRODUCT_POPULATE)
+    .sort({
+      createdAt: -1,
     })
-      .sort({
-        createdAt: -1,
-      })
-      .lean();
-
-  return orders;
+    .lean();
 };
 
-
-// ==================================================
-// GET ORDER BY ID
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Get one customer order
+|--------------------------------------------------------------------------
+*/
 
 export const getOrderByIdService = async (
   orderId,
-  userId
+  userId,
 ) => {
-  const order =
-    await Order.findOne({
-      _id: orderId,
-      user: userId,
-    })
-      .populate(
-        "items.product",
-        "name images slug"
-      )
-      .lean();
+  const order = await Order.findOne({
+    _id: orderId,
+    user: userId,
+  })
+    .populate(ORDER_PRODUCT_POPULATE)
+    .lean();
 
   if (!order) {
     throw new AppError(
       "Order not found",
-      404
+      404,
     );
   }
 
   return order;
 };
 
-
-// ==================================================
-// CANCEL ORDER
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Customer cancellation
+|--------------------------------------------------------------------------
+*/
 
 export const cancelOrderService = async (
   orderId,
-  userId
+  userId,
 ) => {
   const session =
     await mongoose.startSession();
@@ -467,70 +472,50 @@ export const cancelOrderService = async (
   try {
     session.startTransaction();
 
-
-    // ==========================================
-    // FIND ORDER
-    // ==========================================
-
-    const order =
-      await Order.findOne({
-        _id: orderId,
-        user: userId,
-      }).session(session);
+    const order = await Order.findOne({
+      _id: orderId,
+      user: userId,
+    }).session(session);
 
     if (!order) {
       throw new AppError(
         "Order not found",
-        404
+        404,
       );
     }
-
-
-    // ==========================================
-    // CHECK STATUS
-    // ==========================================
 
     if (
       [
         "shipped",
         "delivered",
         "cancelled",
-      ].includes(
-        order.orderStatus
-      )
+      ].includes(order.orderStatus)
     ) {
       throw new AppError(
         `Order cannot be cancelled because it is already ${order.orderStatus}`,
-        400
+        400,
       );
     }
 
-
-    // ==========================================
-    // RESTORE STOCK
-    // ==========================================
-
-    for (const item of order.items) {
-      await Product.findByIdAndUpdate(
-        item.product,
-
-        {
-          $inc: {
-            stock:
-              item.quantity,
-          },
-        },
-
-        {
-          session,
-        }
+    /*
+     * Paid online orders require a real payment
+     * gateway refund before cancellation.
+     */
+    if (
+      order.paymentMethod ===
+        "online" &&
+      order.paymentStatus === "paid"
+    ) {
+      throw new AppError(
+        "This paid order requires a refund before cancellation",
+        400,
       );
     }
 
-
-    // ==========================================
-    // UPDATE ORDER
-    // ==========================================
+    await restoreOrderStock(
+      order,
+      session,
+    );
 
     order.orderStatus =
       "cancelled";
@@ -539,162 +524,174 @@ export const cancelOrderService = async (
       session,
     });
 
-
-    // ==========================================
-    // COMMIT
-    // ==========================================
-
     await session.commitTransaction();
 
     return order;
-
   } catch (error) {
-
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
 
     throw error;
-
   } finally {
-
     await session.endSession();
-
   }
 };
 
-
-// ==================================================
-// ADMIN - GET ALL ORDERS
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Admin: get every order
+|--------------------------------------------------------------------------
+*/
 
 export const getAllOrdersService =
   async () => {
-
-    const orders =
-      await Order.find()
-        .sort({
-          createdAt: -1,
-        })
-        .populate(
-          "user",
-          "name email"
-        )
-        .populate(
-          "items.product",
-          "name images slug"
-        )
-        .lean();
-
-    return orders;
+    return Order.find()
+      .populate(
+        "user",
+        "name email",
+      )
+      .populate(
+        ORDER_PRODUCT_POPULATE,
+      )
+      .sort({
+        createdAt: -1,
+      })
+      .lean();
   };
 
-
-// ==================================================
-// ADMIN - UPDATE ORDER STATUS
-// ==================================================
+/*
+|--------------------------------------------------------------------------
+| Admin: update order status
+|--------------------------------------------------------------------------
+*/
 
 export const updateOrderStatusService =
-  async (
-    orderId,
-    status
-  ) => {
+  async (orderId, status) => {
+    const session =
+      await mongoose.startSession();
 
-    const order =
-      await Order.findById(
-        orderId
-      );
+    try {
+      session.startTransaction();
 
-    if (!order) {
-      throw new AppError(
-        "Order not found",
-        404
-      );
+      const order =
+        await Order.findById(
+          orderId,
+        ).session(session);
+
+      if (!order) {
+        throw new AppError(
+          "Order not found",
+          404,
+        );
+      }
+
+      if (
+        order.orderStatus ===
+        "cancelled"
+      ) {
+        throw new AppError(
+          "Cancelled orders cannot be updated",
+          400,
+        );
+      }
+
+      if (
+        order.orderStatus ===
+        "delivered"
+      ) {
+        throw new AppError(
+          "Delivered orders cannot be updated",
+          400,
+        );
+      }
+
+      const allowedTransitions = {
+        pending: [
+          "confirmed",
+          "cancelled",
+        ],
+
+        confirmed: [
+          "processing",
+          "cancelled",
+        ],
+
+        processing: [
+          "shipped",
+          "cancelled",
+        ],
+
+        shipped: ["delivered"],
+      };
+
+      const allowedStatuses =
+        allowedTransitions[
+          order.orderStatus
+        ];
+
+      if (
+        !allowedStatuses?.includes(
+          status,
+        )
+      ) {
+        throw new AppError(
+          `Cannot change order status from ${order.orderStatus} to ${status}`,
+          400,
+        );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Admin cancellation
+      |--------------------------------------------------------------------------
+      */
+
+      if (status === "cancelled") {
+        if (
+          order.paymentMethod ===
+            "online" &&
+          order.paymentStatus === "paid"
+        ) {
+          throw new AppError(
+            "Refund the online payment before cancelling this order",
+            400,
+          );
+        }
+
+        await restoreOrderStock(
+          order,
+          session,
+        );
+      }
+
+      order.orderStatus = status;
+
+      /*
+       * For COD, payment happens when the
+       * order is successfully delivered.
+       */
+      if (
+        status === "delivered" &&
+        order.paymentMethod === "cod"
+      ) {
+        order.paymentStatus = "paid";
+      }
+
+      await order.save({
+        session,
+      });
+
+      await session.commitTransaction();
+
+      return order;
+    } catch (error) {
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+
+      throw error;
+    } finally {
+      await session.endSession();
     }
-
-
-    // ==========================================
-    // CANNOT UPDATE CANCELLED ORDER
-    // ==========================================
-
-    if (
-      order.orderStatus ===
-      "cancelled"
-    ) {
-      throw new AppError(
-        "Cancelled orders cannot be updated",
-        400
-      );
-    }
-
-
-    // ==========================================
-    // CANNOT UPDATE DELIVERED ORDER
-    // ==========================================
-
-    if (
-      order.orderStatus ===
-      "delivered"
-    ) {
-      throw new AppError(
-        "Delivered orders cannot be updated",
-        400
-      );
-    }
-
-
-    // ==========================================
-    // ALLOWED STATUS TRANSITIONS
-    // ==========================================
-
-    const allowedTransitions = {
-
-      pending: [
-        "confirmed",
-        "cancelled",
-      ],
-
-      confirmed: [
-        "processing",
-        "cancelled",
-      ],
-
-      processing: [
-        "shipped",
-        "cancelled",
-      ],
-
-      shipped: [
-        "delivered",
-      ],
-    };
-
-
-    const allowedStatuses =
-      allowedTransitions[
-        order.orderStatus
-      ];
-
-
-    if (
-      !allowedStatuses ||
-      !allowedStatuses.includes(
-        status
-      )
-    ) {
-      throw new AppError(
-        `Cannot change order status from ${order.orderStatus} to ${status}`,
-        400
-      );
-    }
-
-
-    // ==========================================
-    // UPDATE
-    // ==========================================
-
-    order.orderStatus =
-      status;
-
-    await order.save();
-
-    return order;
   };
