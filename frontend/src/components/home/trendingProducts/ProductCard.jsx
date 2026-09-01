@@ -7,28 +7,49 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 
 import { useCart } from "../../../context/CartContext";
+
 import { useWishlist } from "../../../context/WishlistContext";
 
 const FALLBACK_IMAGE = "/images/product-placeholder.png";
 
+function formatPrice(price) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(price) || 0);
+}
+
 export default function ProductCard({ product, index = 0 }) {
   const [adding, setAdding] = useState(false);
+
   const [added, setAdded] = useState(false);
+
   const [cartError, setCartError] = useState("");
+
+  const [wishlistError, setWishlistError] = useState("");
 
   const addedTimerRef = useRef(null);
 
   const navigate = useNavigate();
+
   const location = useLocation();
 
   const { addToCart } = useCart();
 
-  const { toggleWishlist, isInWishlist } = useWishlist();
+  const {
+    toggleWishlist,
+    isInWishlist,
+    updatingProductId: wishlistUpdatingProductId,
+  } = useWishlist();
 
   /*
-   * Prevent the success timer from updating state
-   * after the component has been unmounted.
-   */
+  |--------------------------------------------------------------------------
+  | Clear timer on unmount
+  |--------------------------------------------------------------------------
+  */
+
   useEffect(() => {
     return () => {
       if (addedTimerRef.current) {
@@ -45,7 +66,9 @@ export default function ProductCard({ product, index = 0 }) {
 
   const {
     name = "Unnamed product",
+
     category = "Uncategorized",
+
     price = 0,
     originalPrice = 0,
     discount = 0,
@@ -62,15 +85,18 @@ export default function ProductCard({ product, index = 0 }) {
       ? category?.name || "Uncategorized"
       : category || "Uncategorized";
 
-  const numericPrice = Number(price) || 0;
+  const numericPrice = Math.max(Number(price) || 0, 0);
 
-  const numericOriginalPrice = Number(originalPrice) || 0;
+  const numericOriginalPrice = Math.max(
+    Number(originalPrice) || numericPrice,
+    0,
+  );
 
-  const numericDiscount = Number(discount) || 0;
+  const numericDiscount = Math.min(Math.max(Number(discount) || 0, 0), 100);
 
-  const numericRating = Number(rating) || 0;
+  const numericRating = Math.min(Math.max(Number(rating) || 0, 0), 5);
 
-  const numericReviews = Number(reviews) || 0;
+  const numericReviews = Math.max(Number(reviews) || 0, 0);
 
   const numericStock = Math.max(Number(stock) || 0, 0);
 
@@ -80,25 +106,50 @@ export default function ProductCard({ product, index = 0 }) {
 
   const wished = Boolean(productId) && isInWishlist(productId);
 
+  const wishlistUpdating =
+    String(wishlistUpdatingProductId) === String(productId);
+
   /*
   |--------------------------------------------------------------------------
   | Wishlist
   |--------------------------------------------------------------------------
   */
 
-  const handleWishlist = (event) => {
+  const handleWishlist = async (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!productId) {
+    if (!productId || wishlistUpdating) {
       return;
     }
 
-    toggleWishlist({
-      ...product,
-      id: productId,
-      _id: productId,
-    });
+    setWishlistError("");
+
+    try {
+      await toggleWishlist({
+        ...product,
+        id: productId,
+        _id: productId,
+      });
+    } catch (error) {
+      if (error?.status === 401) {
+        navigate("/login", {
+          state: {
+            from: location.pathname,
+
+            message: "Please log in to save products to your wishlist.",
+          },
+        });
+
+        return;
+      }
+
+      setWishlistError(
+        error?.data?.message ||
+          error?.message ||
+          "Unable to update your wishlist",
+      );
+    }
   };
 
   /*
@@ -139,13 +190,11 @@ export default function ProductCard({ product, index = 0 }) {
         setAdded(false);
       }, 1200);
     } catch (error) {
-      /*
-       * Cart API requires authentication.
-       */
       if (error?.status === 401) {
         navigate("/login", {
           state: {
             from: location.pathname,
+
             message: "Please log in to add products to your cart.",
           },
         });
@@ -169,6 +218,7 @@ export default function ProductCard({ product, index = 0 }) {
 
   const handleImageError = (event) => {
     event.currentTarget.onerror = null;
+
     event.currentTarget.src = FALLBACK_IMAGE;
   };
 
@@ -188,7 +238,9 @@ export default function ProductCard({ product, index = 0 }) {
       }}
       transition={{
         duration: 0.45,
+
         delay: Math.min(index * 0.05, 0.3),
+
         ease: [0.22, 1, 0.36, 1],
       }}
       whileHover={{
@@ -295,14 +347,14 @@ export default function ProductCard({ product, index = 0 }) {
           <button
             type="button"
             onClick={handleWishlist}
-            disabled={!productId}
+            disabled={!productId || wishlistUpdating}
             aria-label={
               wished
                 ? `Remove ${name} from wishlist`
                 : `Add ${name} to wishlist`
             }
             aria-pressed={wished}
-            className="
+            className={`
               absolute
               right-3
               top-3
@@ -315,7 +367,6 @@ export default function ProductCard({ product, index = 0 }) {
               border
               border-white/70
               bg-white/90
-              text-slate-700
               shadow-sm
               backdrop-blur-sm
               transition-all
@@ -330,16 +381,19 @@ export default function ProductCard({ product, index = 0 }) {
               focus-visible:ring-offset-2
               dark:border-white/10
               dark:bg-slate-900/90
-              dark:text-slate-200
               dark:hover:bg-slate-900
-            "
+              ${wished ? "text-red-500" : "text-slate-700 dark:text-slate-200"}
+            `}
           >
-            <Heart
-              size={17}
-              strokeWidth={1.8}
-              fill={wished ? "currentColor" : "none"}
-              className={wished ? "text-red-500" : "text-current"}
-            />
+            {wishlistUpdating ? (
+              <LoaderCircle size={16} className="animate-spin" />
+            ) : (
+              <Heart
+                size={17}
+                strokeWidth={1.8}
+                fill={wished ? "currentColor" : "none"}
+              />
+            )}
           </button>
         </div>
 
@@ -394,19 +448,19 @@ export default function ProductCard({ product, index = 0 }) {
 
           {/* Price */}
 
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-3 flex flex-wrap items-baseline gap-2">
             <span className="text-base font-bold text-card-foreground sm:text-lg">
-              ₹{numericPrice.toLocaleString("en-IN")}
+              {formatPrice(numericPrice)}
             </span>
 
             {numericOriginalPrice > numericPrice && (
               <span className="text-xs text-muted-foreground line-through">
-                ₹{numericOriginalPrice.toLocaleString("en-IN")}
+                {formatPrice(numericOriginalPrice)}
               </span>
             )}
           </div>
 
-          {/* Cart controls */}
+          {/* Controls */}
 
           <div className="mt-auto pt-4">
             {!isOutOfStock && numericStock <= 5 && (
@@ -475,6 +529,15 @@ export default function ProductCard({ product, index = 0 }) {
                 className="mt-2 text-xs font-medium text-red-600 dark:text-red-400"
               >
                 {cartError}
+              </p>
+            )}
+
+            {wishlistError && (
+              <p
+                role="alert"
+                className="mt-2 text-xs font-medium text-red-600 dark:text-red-400"
+              >
+                {wishlistError}
               </p>
             )}
           </div>

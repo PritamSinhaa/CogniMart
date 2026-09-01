@@ -1,6 +1,16 @@
 const FALLBACK_IMAGE =
   "/product-placeholder.svg";
 
+/*
+|--------------------------------------------------------------------------
+| Format specification names
+|--------------------------------------------------------------------------
+|
+| Example:
+| batteryCapacity → Battery Capacity
+|
+*/
+
 function formatSpecificationName(key) {
   return key
     .replace(/([A-Z])/g, " $1")
@@ -8,6 +18,16 @@ function formatSpecificationName(key) {
       character.toUpperCase(),
     );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Create product features
+|--------------------------------------------------------------------------
+|
+| Use the backend features array when available.
+| Otherwise, convert specifications into readable features.
+|
+*/
 
 function createFeatures(product) {
   if (
@@ -29,32 +49,90 @@ function createFeatures(product) {
       );
     })
     .map(([key, value]) => {
-      return `${formatSpecificationName(key)}: ${value}`;
+      return `${formatSpecificationName(
+        key,
+      )}: ${value}`;
     });
 }
+
+/*
+|--------------------------------------------------------------------------
+| Calculate discounted selling price
+|--------------------------------------------------------------------------
+|
+| Backend contract:
+|
+| product.price    = original/list price
+| product.discount = percentage discount
+|
+| Example:
+| price = 10000
+| discount = 20
+| final price = 8000
+|
+*/
+
+function calculateDiscountedPrice(
+  originalPrice,
+  discount,
+) {
+  const validPrice = Math.max(
+    Number(originalPrice) || 0,
+    0,
+  );
+
+  const validDiscount = Math.min(
+    Math.max(
+      Number(discount) || 0,
+      0,
+    ),
+    100,
+  );
+
+  return Number(
+    (
+      validPrice -
+      (validPrice * validDiscount) /
+        100
+    ).toFixed(2),
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Map one backend product
+|--------------------------------------------------------------------------
+|
+| This gives every frontend component a consistent product shape.
+|
+*/
 
 export function mapProduct(product) {
   if (!product) {
     return null;
   }
 
+  const id =
+    product._id || product.id;
+
+  const originalPrice = Math.max(
+    Number(product.price) || 0,
+    0,
+  );
+
+  const discount = Math.min(
+    Math.max(
+      Number(product.discount) || 0,
+      0,
+    ),
+    100,
+  );
+
   const price =
-    Number(product.price) || 0;
-
-  const discount =
-    Number(product.discount) || 0;
-
-  /*
-   * Assumption:
-   * price is the final selling price.
-   */
-  const originalPrice =
-    discount > 0 && discount < 100
-      ? Math.round(
-          price /
-            (1 - discount / 100),
-        )
-      : price;
+    calculateDiscountedPrice(
+      originalPrice,
+      discount,
+    );
 
   const productImages =
     Array.isArray(product.images)
@@ -66,14 +144,37 @@ export function mapProduct(product) {
       ? productImages
       : [FALLBACK_IMAGE];
 
+  const stock = Math.max(
+    Number(product.stock) || 0,
+    0,
+  );
+
+  const isActive =
+    product.isActive ?? true;
+
+  const category =
+    typeof product.category ===
+    "object"
+      ? product.category?.name ||
+        "Uncategorized"
+      : product.category ||
+        "Uncategorized";
+
   return {
-    id: product._id || product.id,
+    /*
+     * Keep both because some existing
+     * components use id while API-related
+     * code may use _id.
+     */
+    id,
+    _id: id,
 
     name:
       product.name ||
       "Unnamed product",
 
-    slug: product.slug || "",
+    slug:
+      product.slug || "",
 
     description:
       product.description ||
@@ -82,13 +183,12 @@ export function mapProduct(product) {
     brand:
       product.brand || "Unknown",
 
-    category:
-      typeof product.category === "object"
-        ? product.category?.name ||
-          "Uncategorized"
-        : product.category ||
-          "Uncategorized",
+    category,
 
+    /*
+     * price = final selling price
+     * originalPrice = backend list price
+     */
     price,
     originalPrice,
     discount,
@@ -96,11 +196,10 @@ export function mapProduct(product) {
     image: images[0],
     images,
 
-    stock:
-      Number(product.stock) || 0,
+    stock,
 
     inStock:
-      Number(product.stock) > 0,
+      isActive && stock > 0,
 
     rating:
       Number(
@@ -120,15 +219,24 @@ export function mapProduct(product) {
     features:
       createFeatures(product),
 
-    sku: product.sku || "",
+    sku:
+      product.sku || "",
 
-    isActive:
-      product.isActive ?? true,
+    isActive,
 
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt,
+    createdAt:
+      product.createdAt,
+
+    updatedAt:
+      product.updatedAt,
   };
 }
+
+/*
+|--------------------------------------------------------------------------
+| Map a product array
+|--------------------------------------------------------------------------
+*/
 
 export function mapProducts(products) {
   if (!Array.isArray(products)) {

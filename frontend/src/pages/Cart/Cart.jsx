@@ -11,20 +11,19 @@ import {
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
-
 import { motion } from "motion/react";
 
 import { useCart } from "../../context/CartContext";
-
 import { useWishlist } from "../../context/WishlistContext";
 
-const FALLBACK_IMAGE = "/favicon.svg";
+const FALLBACK_IMAGE = "/images/product-placeholder.png";
 
 function formatPrice(price) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(Number(price) || 0);
 }
 
@@ -33,37 +32,88 @@ export default function Cart() {
     cartItems,
     cartCount,
     uniqueItemCount,
+    originalSubtotal,
     subtotal,
     discount,
     delivery,
     total,
+    loading,
+    error,
+    updatingProductId,
     increaseQuantity,
     decreaseQuantity,
     removeFromCart,
     clearCart,
+    clearCartError,
   } = useCart();
 
-  const { addToWishlist } = useWishlist();
+  const { addToWishlist, isInWishlist } = useWishlist();
 
-  const handleMoveToWishlist = (item) => {
-    addToWishlist(item);
-    removeFromCart(item.id);
+  /*
+  |--------------------------------------------------------------------------
+  | Move product to wishlist
+  |--------------------------------------------------------------------------
+  */
+
+  const handleMoveToWishlist = async (item) => {
+    try {
+      clearCartError();
+
+      /*
+       * Avoid adding the same product
+       * twice when it is already saved.
+       */
+      if (!isInWishlist(item.id)) {
+        await addToWishlist(item);
+      }
+
+      /*
+       * Remove from the cart only after
+       * the wishlist operation succeeds.
+       */
+      await removeFromCart(item.id);
+    } catch {
+      /*
+       * CartContext or WishlistContext
+       * owns the visible request error.
+       */
+    }
   };
 
-  const handleClearCart = () => {
+  /*
+  |--------------------------------------------------------------------------
+  | Clear cart
+  |--------------------------------------------------------------------------
+  */
+
+  const handleClearCart = async () => {
     const confirmed = window.confirm("Remove all products from your cart?");
 
-    if (confirmed) {
-      clearCart();
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      clearCartError();
+      await clearCart();
+    } catch {
+      /*
+       * CartContext displays the
+       * request error.
+       */
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <CartHeader cartCount={cartCount} />
 
-        {cartItems.length === 0 ? (
+        {error && <CartError message={error} onClose={clearCartError} />}
+
+        {loading && cartItems.length === 0 ? (
+          <CartLoading />
+        ) : cartItems.length === 0 ? (
           <EmptyCart />
         ) : (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -86,7 +136,8 @@ export default function Cart() {
                     <button
                       type="button"
                       onClick={handleClearCart}
-                      className="text-xs font-semibold text-red-500 transition-colors hover:text-red-600"
+                      disabled={loading}
+                      className="text-xs font-semibold text-red-500 transition-colors hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Clear cart
                     </button>
@@ -101,6 +152,7 @@ export default function Cart() {
                       key={item.id}
                       item={item}
                       index={index}
+                      updating={String(updatingProductId) === String(item.id)}
                       increaseQuantity={increaseQuantity}
                       decreaseQuantity={decreaseQuantity}
                       removeFromCart={removeFromCart}
@@ -114,6 +166,7 @@ export default function Cart() {
             </section>
 
             <OrderSummary
+              originalSubtotal={originalSubtotal}
               subtotal={subtotal}
               discount={discount}
               delivery={delivery}
@@ -122,9 +175,15 @@ export default function Cart() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Header
+|--------------------------------------------------------------------------
+*/
 
 function CartHeader({ cartCount }) {
   return (
@@ -158,9 +217,16 @@ function CartHeader({ cartCount }) {
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| Product
+|--------------------------------------------------------------------------
+*/
+
 function CartProduct({
   item,
   index,
+  updating,
   increaseQuantity,
   decreaseQuantity,
   removeFromCart,
@@ -168,12 +234,31 @@ function CartProduct({
 }) {
   const itemTotal = Number(item.price) * Number(item.quantity);
 
-  const isAtStockLimit = item.quantity >= item.stock;
+  const isAtStockLimit = item.quantity >= item.availableStock;
+
+  const isUnavailable =
+    !item.isActive || !item.inStock || item.availableStock <= 0;
 
   const handleImageError = (event) => {
     event.currentTarget.onerror = null;
 
     event.currentTarget.src = FALLBACK_IMAGE;
+  };
+
+  const handleIncrease = () => {
+    void increaseQuantity(item.id).catch(() => {});
+  };
+
+  const handleDecrease = () => {
+    void decreaseQuantity(item.id).catch(() => {});
+  };
+
+  const handleRemove = () => {
+    void removeFromCart(item.id).catch(() => {});
+  };
+
+  const handleMove = () => {
+    void moveToWishlist(item);
   };
 
   return (
@@ -228,24 +313,38 @@ function CartProduct({
                 <p className="mt-1 text-xs text-slate-400">{item.brand}</p>
               )}
 
-              {item.stock <= 5 && (
-                <p className="mt-1 text-xs font-medium text-amber-500">
-                  Only {item.stock} left in stock
+              {isUnavailable ? (
+                <p className="mt-1 text-xs font-medium text-red-500">
+                  Currently unavailable
                 </p>
+              ) : (
+                item.availableStock <= 5 && (
+                  <p className="mt-1 text-xs font-medium text-amber-500">
+                    Only {item.availableStock} left in stock
+                  </p>
+                )
               )}
             </div>
 
-            <p className="hidden shrink-0 text-base font-bold text-slate-950 sm:block dark:text-white">
-              {formatPrice(itemTotal)}
-            </p>
+            <div className="hidden shrink-0 text-right sm:block">
+              <p className="text-base font-bold text-slate-950 dark:text-white">
+                {formatPrice(itemTotal)}
+              </p>
+
+              {item.originalPrice > item.price && (
+                <p className="mt-1 text-xs text-slate-400 line-through">
+                  {formatPrice(item.originalPrice * item.quantity)}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="mt-5 flex items-center justify-between gap-3">
             <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
-                onClick={() => decreaseQuantity(item.id)}
-                disabled={item.quantity <= 1}
+                onClick={handleDecrease}
+                disabled={updating || item.quantity <= 1 || isUnavailable}
                 className="flex h-9 w-9 items-center justify-center text-slate-500 transition-colors hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-400"
                 aria-label={`Decrease quantity of ${item.name}`}
               >
@@ -258,8 +357,8 @@ function CartProduct({
 
               <button
                 type="button"
-                onClick={() => increaseQuantity(item.id)}
-                disabled={isAtStockLimit}
+                onClick={handleIncrease}
+                disabled={updating || isAtStockLimit || isUnavailable}
                 className="flex h-9 w-9 items-center justify-center text-slate-500 transition-colors hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-400"
                 aria-label={`Increase quantity of ${item.name}`}
               >
@@ -270,8 +369,9 @@ function CartProduct({
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => moveToWishlist(item)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10"
+                onClick={handleMove}
+                disabled={updating}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-500/10"
                 aria-label={`Move ${item.name} to wishlist`}
               >
                 <Heart size={17} />
@@ -279,8 +379,9 @@ function CartProduct({
 
               <button
                 type="button"
-                onClick={() => removeFromCart(item.id)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                onClick={handleRemove}
+                disabled={updating}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-500/10"
                 aria-label={`Remove ${item.name} from cart`}
               >
                 <Trash2 size={17} />
@@ -288,13 +389,27 @@ function CartProduct({
             </div>
           </div>
 
-          <p className="mt-3 text-sm font-bold text-slate-950 sm:hidden dark:text-white">
-            {formatPrice(itemTotal)}
-          </p>
+          <div className="mt-3 sm:hidden">
+            <p className="text-sm font-bold text-slate-950 dark:text-white">
+              {formatPrice(itemTotal)}
+            </p>
 
-          {isAtStockLimit && (
+            {item.originalPrice > item.price && (
+              <p className="mt-1 text-xs text-slate-400 line-through">
+                {formatPrice(item.originalPrice * item.quantity)}
+              </p>
+            )}
+          </div>
+
+          {isAtStockLimit && !isUnavailable && (
             <p className="mt-2 text-xs text-amber-500">
               Maximum available quantity reached.
+            </p>
+          )}
+
+          {updating && (
+            <p className="mt-2 text-xs font-medium text-emerald-600">
+              Updating cart...
             </p>
           )}
         </div>
@@ -302,6 +417,12 @@ function CartProduct({
     </motion.article>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Shopping benefits
+|--------------------------------------------------------------------------
+*/
 
 function ShoppingBenefits() {
   return (
@@ -315,7 +436,7 @@ function ShoppingBenefits() {
       <BenefitItem
         icon={ShieldCheck}
         title="Secure shopping"
-        description="Product prices and stock will be verified again before the order is placed."
+        description="Product prices and stock are verified again before the order is placed."
       />
     </div>
   );
@@ -341,7 +462,19 @@ function BenefitItem({ icon: Icon, title, description }) {
   );
 }
 
-function OrderSummary({ subtotal, discount, delivery, total }) {
+/*
+|--------------------------------------------------------------------------
+| Order summary
+|--------------------------------------------------------------------------
+*/
+
+function OrderSummary({
+  originalSubtotal,
+  subtotal,
+  discount,
+  delivery,
+  total,
+}) {
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -357,15 +490,20 @@ function OrderSummary({ subtotal, discount, delivery, total }) {
 
         <div className="p-5 sm:p-6">
           <div className="space-y-3 text-sm">
-            <SummaryRow label="Subtotal" value={formatPrice(subtotal)} />
-
             <SummaryRow
-              label="Discount"
-              value={
-                discount > 0 ? `− ${formatPrice(discount)}` : formatPrice(0)
-              }
-              valueClass={discount > 0 ? "text-emerald-600" : ""}
+              label="Original price"
+              value={formatPrice(originalSubtotal)}
             />
+
+            {discount > 0 && (
+              <SummaryRow
+                label="Product discount"
+                value={`− ${formatPrice(discount)}`}
+                valueClass="text-emerald-600"
+              />
+            )}
+
+            <SummaryRow label="Subtotal" value={formatPrice(subtotal)} />
 
             <SummaryRow
               label="Delivery"
@@ -408,7 +546,7 @@ function OrderSummary({ subtotal, discount, delivery, total }) {
 
 function SummaryRow({ label, value, valueClass = "" }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-4">
       <span className="text-slate-500 dark:text-slate-400">{label}</span>
 
       <span
@@ -419,6 +557,62 @@ function SummaryRow({ label, value, valueClass = "" }) {
     </div>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Error
+|--------------------------------------------------------------------------
+*/
+
+function CartError({ message, onClose }) {
+  return (
+    <div
+      role="alert"
+      className="mb-5 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10"
+    >
+      <p className="text-sm font-medium text-red-600 dark:text-red-400">
+        {message}
+      </p>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Loading
+|--------------------------------------------------------------------------
+*/
+
+function CartLoading() {
+  return (
+    <div
+      role="status"
+      className="flex min-h-[430px] items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+    >
+      <div className="text-center">
+        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+
+        <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">
+          Loading your cart...
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Empty cart
+|--------------------------------------------------------------------------
+*/
 
 function EmptyCart() {
   return (

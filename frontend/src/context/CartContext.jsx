@@ -25,12 +25,30 @@ const CartContext = createContext(null);
 |--------------------------------------------------------------------------
 */
 
-function calculateFinalPrice(price, discount = 0) {
-  const numericPrice = Number(price) || 0;
-  const numericDiscount = Number(discount) || 0;
+function calculateFinalPrice(
+  price,
+  discount = 0,
+) {
+  const numericPrice = Math.max(
+    Number(price) || 0,
+    0,
+  );
+
+  const numericDiscount = Math.min(
+    Math.max(
+      Number(discount) || 0,
+      0,
+    ),
+    100,
+  );
 
   return Number(
-    (numericPrice - (numericPrice * numericDiscount) / 100).toFixed(2),
+    (
+      numericPrice -
+      (numericPrice *
+        numericDiscount) /
+        100
+    ).toFixed(2),
   );
 }
 
@@ -44,32 +62,104 @@ function normalizeCartItems(cart) {
     .map((item) => {
       const product = item.product;
 
-      const originalPrice = Number(product.price) || 0;
-      const discount = Number(product.discount) || 0;
-      const price = calculateFinalPrice(originalPrice, discount);
+      const productId =
+        product._id || product.id;
+
+      const originalPrice = Math.max(
+        Number(product.price) || 0,
+        0,
+      );
+
+      const discount = Math.min(
+        Math.max(
+          Number(product.discount) ||
+            0,
+          0,
+        ),
+        100,
+      );
+
+      const price =
+        calculateFinalPrice(
+          originalPrice,
+          discount,
+        );
+
+      const availableStock =
+        Math.max(
+          Number(product.stock) || 0,
+          0,
+        );
+
+      const isActive =
+        product.isActive !== false;
+
+      const category =
+        typeof product.category ===
+        "object"
+          ? product.category?.name ||
+            ""
+          : product.category || "";
+
+      const images =
+        Array.isArray(product.images)
+          ? product.images.filter(
+              Boolean,
+            )
+          : [];
 
       return {
-        id: product._id || product.id,
-        _id: product._id || product.id,
-        slug: product.slug,
-        name: product.name,
-        brand: product.brand || "",
-        category: product.category?.name || product.category || "",
-        image: product.images?.[0] || "/images/product-placeholder.png",
-        images: product.images || [],
+        id: productId,
+        _id: productId,
+
+        slug:
+          product.slug || "",
+
+        name:
+          product.name ||
+          "Unnamed product",
+
+        brand:
+          product.brand || "",
+
+        category,
+
+        image:
+          images[0] ||
+          "/images/product-placeholder.png",
+
+        images,
+
+        /*
+         * originalPrice = backend list price
+         * price = discounted selling price
+         */
         originalPrice,
         price,
         discount,
-        quantity: Number(item.quantity) || 1,
-        availableStock: Number(product.stock) || 0,
-        inStock: product.isActive !== false && Number(product.stock) > 0,
-        isActive: product.isActive !== false,
+
+        quantity: Math.max(
+          Number(item.quantity) || 1,
+          1,
+        ),
+
+        availableStock,
+
+        inStock:
+          isActive &&
+          availableStock > 0,
+
+        isActive,
       };
     });
 }
 
 function extractCart(response) {
-  return response?.data?.cart || response?.cart || null;
+  return (
+    response?.data?.cart ||
+    response?.cart ||
+    null
+  );
 }
 
 function extractErrorMessage(error) {
@@ -86,13 +176,28 @@ function extractErrorMessage(error) {
 |--------------------------------------------------------------------------
 */
 
-export function CartProvider({ children }) {
-  const { user, loading: authLoading, isAuthenticated } = useAuth();
+export function CartProvider({
+  children,
+}) {
+  const {
+    user,
+    loading: authLoading,
+    isAuthenticated,
+  } = useAuth();
 
-  const [cartItems, setCartItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [updatingProductId, setUpdatingProductId] = useState(null);
-  const [error, setError] = useState("");
+  const [cartItems, setCartItems] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [
+    updatingProductId,
+    setUpdatingProductId,
+  ] = useState(null);
+
+  const [error, setError] =
+    useState("");
 
   /*
   |--------------------------------------------------------------------------
@@ -100,46 +205,63 @@ export function CartProvider({ children }) {
   |--------------------------------------------------------------------------
   */
 
-  const applyCartResponse = useCallback((response) => {
-    const cart = extractCart(response);
+  const applyCartResponse =
+    useCallback((response) => {
+      const cart =
+        extractCart(response);
 
-    setCartItems(normalizeCartItems(cart));
-  }, []);
+      setCartItems(
+        normalizeCartItems(cart),
+      );
+    }, []);
 
   /*
   |--------------------------------------------------------------------------
-  | Load cart
+  | Refresh cart
   |--------------------------------------------------------------------------
   */
 
-  const refreshCart = useCallback(async () => {
-    if (!isAuthenticated) {
-      setCartItems([]);
-      return [];
-    }
+  const refreshCart =
+    useCallback(async () => {
+      if (!isAuthenticated) {
+        setCartItems([]);
+        return [];
+      }
 
-    setLoading(true);
-    setError("");
+      setLoading(true);
+      setError("");
 
-    try {
-      const response = await getCart();
-      const cart = extractCart(response);
-      const normalizedItems = normalizeCartItems(cart);
+      try {
+        const response =
+          await getCart();
 
-      setCartItems(normalizedItems);
+        const cart =
+          extractCart(response);
 
-      return normalizedItems;
-    } catch (requestError) {
-      setError(extractErrorMessage(requestError));
-      throw requestError;
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
+        const normalizedItems =
+          normalizeCartItems(cart);
+
+        setCartItems(
+          normalizedItems,
+        );
+
+        return normalizedItems;
+      } catch (requestError) {
+        setError(
+          extractErrorMessage(
+            requestError,
+          ),
+        );
+
+        throw requestError;
+      } finally {
+        setLoading(false);
+      }
+    }, [isAuthenticated]);
 
   /*
   |--------------------------------------------------------------------------
-  | Restore cart after authentication is restored
+  | Load cart after authentication
   |--------------------------------------------------------------------------
   */
 
@@ -148,7 +270,7 @@ export function CartProvider({ children }) {
       return;
     }
 
-    if (!user) {
+    if (!isAuthenticated) {
       setCartItems([]);
       setError("");
       return;
@@ -161,7 +283,8 @@ export function CartProvider({ children }) {
       setError("");
 
       try {
-        const response = await getCart();
+        const response =
+          await getCart();
 
         if (!active) {
           return;
@@ -174,7 +297,12 @@ export function CartProvider({ children }) {
         }
 
         setCartItems([]);
-        setError(extractErrorMessage(requestError));
+
+        setError(
+          extractErrorMessage(
+            requestError,
+          ),
+        );
       } finally {
         if (active) {
           setLoading(false);
@@ -187,7 +315,13 @@ export function CartProvider({ children }) {
     return () => {
       active = false;
     };
-  }, [authLoading, user?._id, applyCartResponse]);
+  }, [
+    authLoading,
+    isAuthenticated,
+    user?.id,
+    user?._id,
+    applyCartResponse,
+  ]);
 
   /*
   |--------------------------------------------------------------------------
@@ -195,34 +329,60 @@ export function CartProvider({ children }) {
   |--------------------------------------------------------------------------
   */
 
-  const addToCart = async (product, quantity = 1) => {
+  const addToCart = async (
+    product,
+    quantity = 1,
+  ) => {
     if (!isAuthenticated) {
-      const authenticationError = new Error(
-        "Please log in to add products to your cart",
-      );
+      const authenticationError =
+        new Error(
+          "Please log in to add products to your cart",
+        );
 
-      authenticationError.status = 401;
+      authenticationError.status =
+        401;
 
       throw authenticationError;
     }
 
-    const productId = product?._id || product?.id;
+    const productId =
+      product?._id || product?.id;
 
     if (!productId) {
-      throw new Error("Invalid product");
+      throw new Error(
+        "Invalid product",
+      );
     }
 
-    setUpdatingProductId(String(productId));
+    const numericQuantity =
+      Math.max(
+        Number(quantity) || 1,
+        1,
+      );
+
+    setUpdatingProductId(
+      String(productId),
+    );
+
     setError("");
 
     try {
-      const response = await addCartItem(productId, quantity);
+      const response =
+        await addCartItem(
+          productId,
+          numericQuantity,
+        );
 
       applyCartResponse(response);
 
       return response;
     } catch (requestError) {
-      setError(extractErrorMessage(requestError));
+      setError(
+        extractErrorMessage(
+          requestError,
+        ),
+      );
+
       throw requestError;
     } finally {
       setUpdatingProductId(null);
@@ -231,28 +391,63 @@ export function CartProvider({ children }) {
 
   /*
   |--------------------------------------------------------------------------
-  | Set an exact quantity
+  | Set exact quantity
   |--------------------------------------------------------------------------
   */
 
-  const updateQuantity = async (productId, quantity) => {
-    const numericQuantity = Number(quantity);
+  const updateQuantity = async (
+    productId,
+    quantity,
+  ) => {
+    const numericQuantity =
+      Number(quantity);
 
-    if (numericQuantity <= 0) {
-      return removeFromCart(productId);
+    if (
+      !Number.isInteger(
+        numericQuantity,
+      )
+    ) {
+      const quantityError =
+        new Error(
+          "Quantity must be a whole number",
+        );
+
+      setError(
+        quantityError.message,
+      );
+
+      throw quantityError;
     }
 
-    setUpdatingProductId(String(productId));
+    if (numericQuantity <= 0) {
+      return removeFromCart(
+        productId,
+      );
+    }
+
+    setUpdatingProductId(
+      String(productId),
+    );
+
     setError("");
 
     try {
-      const response = await updateCartItem(productId, numericQuantity);
+      const response =
+        await updateCartItem(
+          productId,
+          numericQuantity,
+        );
 
       applyCartResponse(response);
 
       return response;
     } catch (requestError) {
-      setError(extractErrorMessage(requestError));
+      setError(
+        extractErrorMessage(
+          requestError,
+        ),
+      );
+
       throw requestError;
     } finally {
       setUpdatingProductId(null);
@@ -265,26 +460,40 @@ export function CartProvider({ children }) {
   |--------------------------------------------------------------------------
   */
 
-  const increaseQuantity = async (productId) => {
-    const cartItem = cartItems.find(
-      (item) => String(item.id) === String(productId),
-    );
+  const increaseQuantity = async (
+    productId,
+  ) => {
+    const cartItem =
+      cartItems.find(
+        (item) =>
+          String(item.id) ===
+          String(productId),
+      );
 
     if (!cartItem) {
       return;
     }
 
-    if (cartItem.quantity >= cartItem.availableStock) {
-      const stockError = new Error(
-        `Only ${cartItem.availableStock} units are available`,
-      );
+    if (
+      cartItem.quantity >=
+      cartItem.availableStock
+    ) {
+      const stockError =
+        new Error(
+          `Only ${cartItem.availableStock} units are available`,
+        );
 
-      setError(stockError.message);
+      setError(
+        stockError.message,
+      );
 
       throw stockError;
     }
 
-    return updateQuantity(productId, cartItem.quantity + 1);
+    return updateQuantity(
+      productId,
+      cartItem.quantity + 1,
+    );
   };
 
   /*
@@ -293,20 +502,34 @@ export function CartProvider({ children }) {
   |--------------------------------------------------------------------------
   */
 
-  const decreaseQuantity = async (productId) => {
-    const cartItem = cartItems.find(
-      (item) => String(item.id) === String(productId),
-    );
+  const decreaseQuantity = async (
+    productId,
+  ) => {
+    const cartItem =
+      cartItems.find(
+        (item) =>
+          String(item.id) ===
+          String(productId),
+      );
 
     if (!cartItem) {
       return;
     }
 
+    /*
+     * Quantity one is removed when the
+     * customer presses minus.
+     */
     if (cartItem.quantity <= 1) {
-      return removeFromCart(productId);
+      return removeFromCart(
+        productId,
+      );
     }
 
-    return updateQuantity(productId, cartItem.quantity - 1);
+    return updateQuantity(
+      productId,
+      cartItem.quantity - 1,
+    );
   };
 
   /*
@@ -315,18 +538,31 @@ export function CartProvider({ children }) {
   |--------------------------------------------------------------------------
   */
 
-  const removeFromCart = async (productId) => {
-    setUpdatingProductId(String(productId));
+  const removeFromCart = async (
+    productId,
+  ) => {
+    setUpdatingProductId(
+      String(productId),
+    );
+
     setError("");
 
     try {
-      const response = await removeCartItem(productId);
+      const response =
+        await removeCartItem(
+          productId,
+        );
 
       applyCartResponse(response);
 
       return response;
     } catch (requestError) {
-      setError(extractErrorMessage(requestError));
+      setError(
+        extractErrorMessage(
+          requestError,
+        ),
+      );
+
       throw requestError;
     } finally {
       setUpdatingProductId(null);
@@ -344,13 +580,19 @@ export function CartProvider({ children }) {
     setError("");
 
     try {
-      const response = await clearCartItems();
+      const response =
+        await clearCartItems();
 
       applyCartResponse(response);
 
       return response;
     } catch (requestError) {
-      setError(extractErrorMessage(requestError));
+      setError(
+        extractErrorMessage(
+          requestError,
+        ),
+      );
+
       throw requestError;
     } finally {
       setLoading(false);
@@ -369,35 +611,106 @@ export function CartProvider({ children }) {
 
   const cartCount = useMemo(() => {
     return cartItems.reduce(
-      (totalQuantity, item) => totalQuantity + item.quantity,
-      0,
-    );
-  }, [cartItems]);
-
-  const subtotal = useMemo(() => {
-    return cartItems.reduce(
-      (currentSubtotal, item) => currentSubtotal + item.price * item.quantity,
+      (
+        totalQuantity,
+        item,
+      ) =>
+        totalQuantity +
+        item.quantity,
       0,
     );
   }, [cartItems]);
 
   /*
-   * These values now match your backend order service.
+   * Number of different products,
+   * regardless of quantity.
    */
-  const shippingFee = subtotal === 0 || subtotal >= 1000 ? 0 : 50;
+  const uniqueItemCount =
+    cartItems.length;
 
-  const total = subtotal + shippingFee;
+  /*
+   * Original total before product
+   * discounts.
+   */
+  const originalSubtotal =
+    useMemo(() => {
+      return cartItems.reduce(
+        (
+          currentSubtotal,
+          item,
+        ) =>
+          currentSubtotal +
+          item.originalPrice *
+            item.quantity,
+        0,
+      );
+    }, [cartItems]);
+
+  /*
+   * Selling-price subtotal after
+   * product discounts.
+   */
+  const subtotal = useMemo(() => {
+    return cartItems.reduce(
+      (
+        currentSubtotal,
+        item,
+      ) =>
+        currentSubtotal +
+        item.price *
+          item.quantity,
+      0,
+    );
+  }, [cartItems]);
+
+  const discount = Math.max(
+    originalSubtotal - subtotal,
+    0,
+  );
+
+  /*
+   * Must match the backend order
+   * service exactly.
+   */
+  const shippingFee =
+    subtotal === 0 ||
+    subtotal >= 1000
+      ? 0
+      : 50;
+
+  /*
+   * Product discount has already
+   * been applied inside subtotal.
+   */
+  const total =
+    subtotal + shippingFee;
+
+  /*
+  |--------------------------------------------------------------------------
+  | Context value
+  |--------------------------------------------------------------------------
+  */
 
   const value = {
     cartItems,
-    cartCount,
-    subtotal,
 
-    // Keep both names temporarily for existing components.
+    cartCount,
+    uniqueItemCount,
+
+    originalSubtotal,
+    subtotal,
+    discount,
+
+    /*
+     * Keep both temporarily because
+     * existing components use both
+     * property names.
+     */
     delivery: shippingFee,
     shippingFee,
 
     total,
+
     loading,
     error,
     updatingProductId,
@@ -412,7 +725,13 @@ export function CartProvider({ children }) {
     clearCartError,
   };
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider
+      value={value}
+    >
+      {children}
+    </CartContext.Provider>
+  );
 }
 
 /*
@@ -422,10 +741,13 @@ export function CartProvider({ children }) {
 */
 
 export function useCart() {
-  const context = useContext(CartContext);
+  const context =
+    useContext(CartContext);
 
   if (!context) {
-    throw new Error("useCart must be used inside CartProvider");
+    throw new Error(
+      "useCart must be used inside CartProvider",
+    );
   }
 
   return context;

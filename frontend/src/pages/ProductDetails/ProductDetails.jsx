@@ -1,36 +1,31 @@
-import {
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
-import {
-  AlertCircle,
-  ArrowLeft,
-  PackageSearch,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, PackageSearch } from "lucide-react";
 
-import {
-  Link,
-  useParams,
-} from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import ProductGallery from "./ProductGallery";
 import ProductInfo from "./ProductInfo";
 import ProductPurchaseCard from "./ProductPurchaseCard";
+import ProductReviews from "./ProductReviews";
 
 import useProduct from "../../hooks/useProduct";
 
 export default function ProductDetails() {
   const { id } = useParams();
 
-  const {
-    product,
-    loading,
-    error,
-    notFound,
-  } = useProduct(id);
+  const { product, loading, error, notFound } = useProduct(id);
 
-  const [quantity, setQuantity] =
-    useState(1);
+  const [quantity, setQuantity] = useState(1);
+
+  /*
+   * Reset quantity if React Router
+   * loads another product using the
+   * same mounted component.
+   */
+  useEffect(() => {
+    setQuantity(1);
+  }, [id]);
 
   if (loading) {
     return <ProductDetailsLoading />;
@@ -41,48 +36,49 @@ export default function ProductDetails() {
   }
 
   if (error) {
-    return (
-      <ProductDetailsError
-        message={error}
-      />
-    );
+    return <ProductDetailsError message={error} />;
   }
 
   if (!product) {
     return <ProductNotFound />;
   }
 
+  const productId = product._id || product.id || id;
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <ProductDetailsNavigation />
 
       <section className="mx-auto max-w-[1600px] px-5 py-8 sm:px-8 lg:px-12 lg:py-12 xl:px-16">
+        {/* Product information */}
+
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(400px,0.9fr)] xl:gap-16">
-          <ProductGallery
-            images={product.images}
-            productName={
-              product.name
-            }
-          />
+          <ProductGallery images={product.images} productName={product.name} />
 
           <div className="space-y-8">
-            <ProductInfo
-              product={product}
-            />
+            <ProductInfo product={product} />
 
             <ProductPurchaseCard
               product={product}
               quantity={quantity}
-              setQuantity={
-                setQuantity
-              }
+              setQuantity={setQuantity}
             />
           </div>
         </div>
+
+        {/* Customer reviews */}
+
+        <ProductReviews productId={productId} />
       </section>
-    </div>
+    </main>
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Navigation
+|--------------------------------------------------------------------------
+*/
 
 function ProductDetailsNavigation() {
   return (
@@ -104,7 +100,6 @@ function ProductDetailsNavigation() {
           "
         >
           <ArrowLeft size={16} />
-
           Back to products
         </Link>
       </div>
@@ -112,9 +107,15 @@ function ProductDetailsNavigation() {
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| Loading
+|--------------------------------------------------------------------------
+*/
+
 function ProductDetailsLoading() {
   return (
-    <div
+    <main
       className="flex min-h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-950"
       role="status"
       aria-live="polite"
@@ -137,13 +138,19 @@ function ProductDetailsLoading() {
           Loading product...
         </p>
       </div>
-    </div>
+    </main>
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| Not found
+|--------------------------------------------------------------------------
+*/
+
 function ProductNotFound() {
   return (
-    <div className="flex min-h-[70vh] items-center justify-center bg-slate-50 px-5 dark:bg-slate-950">
+    <main className="flex min-h-[70vh] items-center justify-center bg-slate-50 px-5 dark:bg-slate-950">
       <div className="max-w-md text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-900">
           <PackageSearch size={27} />
@@ -154,8 +161,7 @@ function ProductNotFound() {
         </h1>
 
         <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-          This product may have been removed,
-          deactivated or does not exist.
+          This product may have been removed, deactivated or does not exist.
         </p>
 
         <Link
@@ -177,19 +183,22 @@ function ProductNotFound() {
           "
         >
           <ArrowLeft size={16} />
-
           Back to products
         </Link>
       </div>
-    </div>
+    </main>
   );
 }
 
-function ProductDetailsError({
-  message,
-}) {
+/*
+|--------------------------------------------------------------------------
+| Error
+|--------------------------------------------------------------------------
+*/
+
+function ProductDetailsError({ message }) {
   return (
-    <div
+    <main
       className="flex min-h-[70vh] items-center justify-center bg-slate-50 px-5 dark:bg-slate-950"
       role="alert"
     >
@@ -225,10 +234,9 @@ function ProductDetailsError({
           "
         >
           <ArrowLeft size={16} />
-
           Back to products
         </Link>
       </div>
-    </div>
+    </main>
   );
 }
