@@ -48,3 +48,13 @@ export function updateOrderStatus(orderId, status, options = {}) {
     },
   });
 }
+
+export function getAdminOrderById(
+  orderId,
+  options = {},
+) {
+  return apiRequest(
+    `/orders/admin/${orderId}`,
+    options,
+  );
+}

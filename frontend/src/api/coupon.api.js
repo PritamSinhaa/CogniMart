@@ -2,19 +2,11 @@ import { apiRequest } from "./client";
 
 /*
 |--------------------------------------------------------------------------
-| Apply and validate a coupon
+| Customer coupon validation
 |--------------------------------------------------------------------------
-|
-| This endpoint previews the discount.
-| It does not increment coupon usage.
-|
-| Coupon usage is incremented only when
-| the backend successfully creates the
-| final order.
-|
 */
 
-export function applyCoupon(code, orderValue) {
+export function applyCoupon(code, orderValue, options = {}) {
   const normalizedCode = String(code || "")
     .trim()
     .toUpperCase();
@@ -30,12 +22,55 @@ export function applyCoupon(code, orderValue) {
   }
 
   return apiRequest("/coupons/apply", {
+    ...options,
     method: "POST",
 
     body: {
       code: normalizedCode,
-
       orderValue: numericOrderValue,
     },
+  });
+}
+
+/*
+|--------------------------------------------------------------------------
+| Admin coupon queries
+|--------------------------------------------------------------------------
+*/
+
+export function getCoupons(options = {}) {
+  return apiRequest("/coupons", options);
+}
+
+export function getCouponById(couponId, options = {}) {
+  return apiRequest(`/coupons/${couponId}`, options);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Admin coupon mutations
+|--------------------------------------------------------------------------
+*/
+
+export function createCoupon(payload, options = {}) {
+  return apiRequest("/coupons", {
+    ...options,
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateCoupon(couponId, payload, options = {}) {
+  return apiRequest(`/coupons/${couponId}`, {
+    ...options,
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function deleteCoupon(couponId, options = {}) {
+  return apiRequest(`/coupons/${couponId}`, {
+    ...options,
+    method: "DELETE",
   });
 }
