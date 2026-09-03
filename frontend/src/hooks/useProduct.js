@@ -1,113 +1,91 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
-import {
-  getProductById,
-} from "../api/products.api";
+import { getProducts } from "../api/products.api";
 
-import {
-  mapProduct,
-} from "../lib/productMapper";
+import { mapProducts } from "../lib/productMapper";
 
-function extractProduct(response) {
-  return (
-    response?.data?.product ||
-    response?.product ||
-    response?.data ||
-    null
-  );
+function extractProducts(response) {
+  return response?.data?.products || response?.products || response?.data || [];
 }
 
-export default function useProduct(productId) {
-  const [product, setProduct] =
-    useState(null);
+function extractPagination(response) {
+  return response?.data?.pagination || response?.pagination || null;
+}
 
-  const [loading, setLoading] =
-    useState(true);
+export default function useProducts(params = {}) {
+  const [products, setProducts] = useState([]);
 
-  const [error, setError] =
-    useState("");
+  const [pagination, setPagination] = useState(null);
 
-  const [notFound, setNotFound] =
-    useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
+
+  /*
+   * Converts the parameter object into a stable
+   * dependency value.
+   *
+   * This prevents unnecessary API requests when a
+   * component passes an object literal such as:
+   *
+   * useProducts({ limit: 6 })
+   */
+  const paramsKey = JSON.stringify(params);
 
   useEffect(() => {
-    if (!productId) {
-      setLoading(false);
-      setNotFound(true);
-      return undefined;
-    }
+    const controller = new AbortController();
 
-    const controller =
-      new AbortController();
+    const requestParams = JSON.parse(paramsKey);
 
-    async function loadProduct() {
+    async function loadProducts() {
       try {
         setLoading(true);
         setError("");
-        setNotFound(false);
 
-        const response =
-          await getProductById(
-            productId,
-            {
-              signal:
-                controller.signal,
-            },
-          );
+        const response = await getProducts(requestParams, {
+          signal: controller.signal,
+        });
 
-        const rawProduct =
-          extractProduct(response);
-
-        if (!rawProduct) {
-          setProduct(null);
-          setNotFound(true);
+        if (controller.signal.aborted) {
           return;
         }
 
-        setProduct(
-          mapProduct(rawProduct),
-        );
-      } catch (error) {
-        if (
-          error.name === "AbortError"
-        ) {
+        const rawProducts = extractProducts(response);
+
+        setProducts(mapProducts(rawProducts));
+
+        setPagination(extractPagination(response));
+      } catch (requestError) {
+        if (requestError?.name === "AbortError") {
           return;
         }
 
-        if (error.status === 404) {
-          setProduct(null);
-          setNotFound(true);
-          return;
-        }
+        setProducts([]);
+        setPagination(null);
 
         setError(
-          error?.data?.message ||
-            error?.message ||
-            "Unable to load this product.",
+          requestError?.data?.message ||
+            requestError?.message ||
+            "Unable to load products.",
         );
       } finally {
-        if (
-          !controller.signal.aborted
-        ) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
     }
 
-    loadProduct();
+    loadProducts();
 
     return () => {
       controller.abort();
     };
-  }, [productId]);
+  }, [paramsKey]);
 
   return {
-    product,
+    products,
+    pagination,
     loading,
     error,
-    notFound,
   };
 }

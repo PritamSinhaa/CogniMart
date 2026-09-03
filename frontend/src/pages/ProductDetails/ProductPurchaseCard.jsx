@@ -62,24 +62,25 @@ export default function ProductPurchaseCard({
     updatingProductId: wishlistUpdatingProductId,
   } = useWishlist();
 
-  if (!product) {
-    return null;
-  }
+  /*
+  |--------------------------------------------------------------------------
+  | Null-safe product information
+  |--------------------------------------------------------------------------
+  */
 
-  const productId = product._id || product.id;
+  const productId = product?._id || product?.id;
 
-  const stock = Math.max(Number(product.stock) || 0, 0);
+  const stock = Math.max(Number(product?.stock) || 0, 0);
 
   /*
-   * product.price has already been
-   * mapped to the discounted selling
-   * price by productMapper.js.
+   * product.price is already mapped
+   * to the discounted selling price.
    */
-  const price = Math.max(Number(product.price) || 0, 0);
+  const price = Math.max(Number(product?.price) || 0, 0);
 
-  const originalPrice = Math.max(Number(product.originalPrice) || price, 0);
+  const originalPrice = Math.max(Number(product?.originalPrice) || price, 0);
 
-  const isActive = product.isActive !== false;
+  const isActive = product?.isActive !== false;
 
   const isOutOfStock = !isActive || stock <= 0;
 
@@ -88,6 +89,7 @@ export default function ProductPurchaseCard({
   const isWishlisted = Boolean(productId) && isInWishlist(productId);
 
   const wishlistUpdating =
+    Boolean(productId) &&
     String(wishlistUpdatingProductId) === String(productId);
 
   const cartUpdating = addingToCart || buyingNow;
@@ -113,6 +115,10 @@ export default function ProductPurchaseCard({
   */
 
   useEffect(() => {
+    if (!product) {
+      return;
+    }
+
     if (isOutOfStock) {
       setQuantity(1);
       return;
@@ -121,7 +127,15 @@ export default function ProductPurchaseCard({
     setQuantity((currentQuantity) =>
       Math.min(Math.max(Number(currentQuantity) || 1, 1), stock),
     );
-  }, [stock, isOutOfStock, setQuantity]);
+  }, [product, stock, isOutOfStock, setQuantity]);
+
+  /*
+   * This return must remain after
+   * every React hook.
+   */
+  if (!product) {
+    return null;
+  }
 
   /*
   |--------------------------------------------------------------------------
@@ -133,7 +147,6 @@ export default function ProductPurchaseCard({
     navigate("/login", {
       state: {
         from: location.pathname,
-
         message,
       },
     });
@@ -141,7 +154,7 @@ export default function ProductPurchaseCard({
 
   /*
   |--------------------------------------------------------------------------
-  | Quantity
+  | Quantity controls
   |--------------------------------------------------------------------------
   */
 
@@ -163,7 +176,7 @@ export default function ProductPurchaseCard({
 
   /*
   |--------------------------------------------------------------------------
-  | Add to Cart
+  | Add to cart
   |--------------------------------------------------------------------------
   */
 
@@ -227,7 +240,7 @@ export default function ProductPurchaseCard({
     try {
       /*
        * Wait for MongoDB to confirm
-       * the Cart update before
+       * the cart update before
        * navigating.
        */
       await addToCart(
@@ -292,21 +305,7 @@ export default function ProductPurchaseCard({
   const originalTotal = originalPrice * quantity;
 
   return (
-    <div
-      className="
-        rounded-3xl
-        border
-        border-slate-200
-        bg-white
-        p-5
-        shadow-sm
-        sm:p-6
-        dark:border-slate-800
-        dark:bg-slate-900
-      "
-    >
-      {/* Stock and Wishlist */}
-
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <StockStatus
           stock={stock}
@@ -324,30 +323,11 @@ export default function ProductPurchaseCard({
               : `Add ${product.name} to wishlist`
           }
           aria-pressed={isWishlisted}
-          className={`
-            flex
-            h-10
-            w-10
-            items-center
-            justify-center
-            rounded-full
-            border
-            transition-all
-            duration-200
-            hover:scale-105
-            disabled:cursor-not-allowed
-            disabled:opacity-60
-            focus-visible:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-red-400
-            focus-visible:ring-offset-2
-            dark:focus-visible:ring-offset-slate-900
-            ${
-              isWishlisted
-                ? "border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10"
-                : "border-slate-200 text-slate-500 hover:border-red-200 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-900 dark:hover:text-red-400"
-            }
-          `}
+          className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+            isWishlisted
+              ? "border-red-200 bg-red-50 text-red-500 dark:border-red-500/20 dark:bg-red-500/10"
+              : "border-slate-200 text-slate-500 hover:border-red-200 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-900 dark:hover:text-red-400"
+          }`}
         >
           {wishlistUpdating ? (
             <LoaderCircle size={17} className="animate-spin" />
@@ -356,8 +336,6 @@ export default function ProductPurchaseCard({
           )}
         </button>
       </div>
-
-      {/* Wishlist error */}
 
       {wishlistError && (
         <p
@@ -368,93 +346,18 @@ export default function ProductPurchaseCard({
         </p>
       )}
 
-      {/* Delivery */}
+      <DeliveryInformation />
 
-      <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-            <Truck size={17} />
-          </div>
+      <QuantitySelector
+        quantity={quantity}
+        stock={stock}
+        isOutOfStock={isOutOfStock}
+        cartUpdating={cartUpdating}
+        onIncrease={increaseQuantity}
+        onDecrease={decreaseQuantity}
+      />
 
-          <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">
-              Delivery available
-            </p>
-
-            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-              Final delivery charges will be calculated from your cart total.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Quantity */}
-
-      <div className="mt-6">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-            Quantity
-          </p>
-
-          {!isOutOfStock && (
-            <span className="text-xs text-slate-400">{stock} available</span>
-          )}
-        </div>
-
-        <div className="mt-3 flex w-fit items-center rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-          <button
-            type="button"
-            onClick={decreaseQuantity}
-            disabled={quantity <= 1 || isOutOfStock || cartUpdating}
-            aria-label="Decrease quantity"
-            className="flex h-11 w-11 items-center justify-center text-slate-500 transition-colors hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-400"
-          >
-            <Minus size={15} />
-          </button>
-
-          <span className="flex h-11 w-11 items-center justify-center border-x border-slate-200 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:text-white">
-            {quantity}
-          </span>
-
-          <button
-            type="button"
-            onClick={increaseQuantity}
-            disabled={quantity >= stock || isOutOfStock || cartUpdating}
-            aria-label="Increase quantity"
-            className="flex h-11 w-11 items-center justify-center text-slate-500 transition-colors hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-400"
-          >
-            <Plus size={15} />
-          </button>
-        </div>
-
-        {!isOutOfStock && quantity >= stock && (
-          <p className="mt-2 text-xs font-medium text-amber-500">
-            Maximum available quantity reached.
-          </p>
-        )}
-      </div>
-
-      {/* Total */}
-
-      <div className="mt-6 flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-950">
-        <span className="text-sm text-slate-500 dark:text-slate-400">
-          Total
-        </span>
-
-        <div className="text-right">
-          <span className="block text-lg font-bold text-slate-950 dark:text-white">
-            {formatPrice(totalPrice)}
-          </span>
-
-          {originalTotal > totalPrice && (
-            <span className="block text-xs text-slate-400 line-through">
-              {formatPrice(originalTotal)}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Cart error */}
+      <PriceTotal totalPrice={totalPrice} originalTotal={originalTotal} />
 
       {cartError && (
         <p
@@ -465,85 +368,236 @@ export default function ProductPurchaseCard({
         </p>
       )}
 
-      {/* Actions */}
+      <PurchaseActions
+        addingToCart={addingToCart}
+        addedToCart={addedToCart}
+        buyingNow={buyingNow}
+        isOutOfStock={isOutOfStock}
+        cartUpdating={cartUpdating}
+        onAddToCart={handleAddToCart}
+        onBuyNow={handleBuyNow}
+      />
 
-      <div className="mt-5 grid gap-3">
-        <motion.button
-          type="button"
-          whileTap={{
-            scale: 0.98,
-          }}
-          onClick={handleAddToCart}
-          disabled={isOutOfStock || cartUpdating}
-          className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-800"
-        >
-          {addingToCart ? (
-            <>
-              <LoaderCircle size={17} className="animate-spin" />
-              Adding...
-            </>
-          ) : addedToCart ? (
-            <>
-              <Check size={17} />
-              Added to Cart
-            </>
-          ) : isOutOfStock ? (
-            "Out of stock"
-          ) : (
-            <>
-              <ShoppingCart size={17} />
-              Add to Cart
-            </>
-          )}
-        </motion.button>
+      <PurchaseInformation />
+    </div>
+  );
+}
 
-        <motion.button
-          type="button"
-          whileTap={{
-            scale: 0.98,
-          }}
-          onClick={handleBuyNow}
-          disabled={isOutOfStock || cartUpdating}
-          className="flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-900 transition-all hover:border-emerald-300 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:hover:border-emerald-700 dark:hover:text-emerald-400"
-        >
-          {buyingNow ? (
-            <>
-              <LoaderCircle size={17} className="animate-spin" />
-              Preparing...
-            </>
-          ) : (
-            <>
-              <Zap size={17} />
-              Buy Now
-            </>
-          )}
-        </motion.button>
+/*
+|--------------------------------------------------------------------------
+| Delivery information
+|--------------------------------------------------------------------------
+*/
+
+function DeliveryInformation() {
+  return (
+    <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+          <Truck size={17} />
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+            Delivery available
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            Final delivery charges will be calculated from your cart total.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Quantity
+|--------------------------------------------------------------------------
+*/
+
+function QuantitySelector({
+  quantity,
+  stock,
+  isOutOfStock,
+  cartUpdating,
+  onIncrease,
+  onDecrease,
+}) {
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+          Quantity
+        </p>
+
+        {!isOutOfStock && (
+          <span className="text-xs text-slate-400">{stock} available</span>
+        )}
       </div>
 
-      {/* Information */}
+      <div className="mt-3 flex w-fit items-center rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <button
+          type="button"
+          onClick={onDecrease}
+          disabled={quantity <= 1 || isOutOfStock || cartUpdating}
+          aria-label="Decrease quantity"
+          className="flex h-11 w-11 items-center justify-center text-slate-500 transition-colors hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-400"
+        >
+          <Minus size={15} />
+        </button>
 
-      <div className="mt-5 space-y-3">
-        <div className="flex items-center gap-3">
-          <ShieldCheck
-            size={16}
-            className="shrink-0 text-emerald-600 dark:text-emerald-400"
-          />
+        <span className="flex h-11 w-11 items-center justify-center border-x border-slate-200 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:text-white">
+          {quantity}
+        </span>
 
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Secure checkout
+        <button
+          type="button"
+          onClick={onIncrease}
+          disabled={quantity >= stock || isOutOfStock || cartUpdating}
+          aria-label="Increase quantity"
+          className="flex h-11 w-11 items-center justify-center text-slate-500 transition-colors hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-400"
+        >
+          <Plus size={15} />
+        </button>
+      </div>
+
+      {!isOutOfStock && quantity >= stock && (
+        <p className="mt-2 text-xs font-medium text-amber-500">
+          Maximum available quantity reached.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Price total
+|--------------------------------------------------------------------------
+*/
+
+function PriceTotal({ totalPrice, originalTotal }) {
+  return (
+    <div className="mt-6 flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-950">
+      <span className="text-sm text-slate-500 dark:text-slate-400">Total</span>
+
+      <div className="text-right">
+        <span className="block text-lg font-bold text-slate-950 dark:text-white">
+          {formatPrice(totalPrice)}
+        </span>
+
+        {originalTotal > totalPrice && (
+          <span className="block text-xs text-slate-400 line-through">
+            {formatPrice(originalTotal)}
           </span>
-        </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-        <div className="flex items-center gap-3">
-          <Truck
-            size={16}
-            className="shrink-0 text-emerald-600 dark:text-emerald-400"
-          />
+/*
+|--------------------------------------------------------------------------
+| Actions
+|--------------------------------------------------------------------------
+*/
 
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Product price and stock are checked again during checkout.
-          </span>
-        </div>
+function PurchaseActions({
+  addingToCart,
+  addedToCart,
+  buyingNow,
+  isOutOfStock,
+  cartUpdating,
+  onAddToCart,
+  onBuyNow,
+}) {
+  return (
+    <div className="mt-5 grid gap-3">
+      <motion.button
+        type="button"
+        whileTap={{
+          scale: 0.98,
+        }}
+        onClick={onAddToCart}
+        disabled={isOutOfStock || cartUpdating}
+        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-800"
+      >
+        {addingToCart ? (
+          <>
+            <LoaderCircle size={17} className="animate-spin" />
+            Adding...
+          </>
+        ) : addedToCart ? (
+          <>
+            <Check size={17} />
+            Added to Cart
+          </>
+        ) : isOutOfStock ? (
+          "Out of stock"
+        ) : (
+          <>
+            <ShoppingCart size={17} />
+            Add to Cart
+          </>
+        )}
+      </motion.button>
+
+      <motion.button
+        type="button"
+        whileTap={{
+          scale: 0.98,
+        }}
+        onClick={onBuyNow}
+        disabled={isOutOfStock || cartUpdating}
+        className="flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-900 transition-all hover:border-emerald-300 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:hover:border-emerald-700 dark:hover:text-emerald-400"
+      >
+        {buyingNow ? (
+          <>
+            <LoaderCircle size={17} className="animate-spin" />
+            Preparing...
+          </>
+        ) : (
+          <>
+            <Zap size={17} />
+            Buy Now
+          </>
+        )}
+      </motion.button>
+    </div>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Purchase information
+|--------------------------------------------------------------------------
+*/
+
+function PurchaseInformation() {
+  return (
+    <div className="mt-5 space-y-3">
+      <div className="flex items-center gap-3">
+        <ShieldCheck
+          size={16}
+          className="shrink-0 text-emerald-600 dark:text-emerald-400"
+        />
+
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          Secure checkout
+        </span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Truck
+          size={16}
+          className="shrink-0 text-emerald-600 dark:text-emerald-400"
+        />
+
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          Product price and stock are checked again during checkout.
+        </span>
       </div>
     </div>
   );

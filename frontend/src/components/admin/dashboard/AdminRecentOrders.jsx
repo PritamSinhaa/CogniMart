@@ -1,443 +1,360 @@
-import { ArrowRight, Eye } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ArrowRight, Eye, ShoppingBag } from "lucide-react";
 
-const orders = [
-  {
-    id: "#CM-10482",
-    customer: "Rahul Sharma",
-    email: "rahul@example.com",
-    amount: "₹8,499",
-    payment: "Paid",
-    status: "Processing",
-    date: "Today, 10:42 AM",
-  },
-  {
-    id: "#CM-10481",
-    customer: "Priya Patel",
-    email: "priya@example.com",
-    amount: "₹3,299",
-    payment: "Paid",
-    status: "Shipped",
-    date: "Today, 09:18 AM",
-  },
-  {
-    id: "#CM-10480",
-    customer: "Arjun Mehta",
-    email: "arjun@example.com",
-    amount: "₹12,999",
-    payment: "Paid",
-    status: "Delivered",
-    date: "Yesterday, 06:24 PM",
-  },
-  {
-    id: "#CM-10479",
-    customer: "Sneha Kapoor",
-    email: "sneha@example.com",
-    amount: "₹2,499",
-    payment: "Pending",
-    status: "Pending",
-    date: "Yesterday, 04:51 PM",
-  },
-  {
-    id: "#CM-10478",
-    customer: "Vikram Singh",
-    email: "vikram@example.com",
-    amount: "₹6,799",
-    payment: "Paid",
-    status: "Delivered",
-    date: "Yesterday, 02:15 PM",
-  },
-];
+import { Link } from "react-router-dom";
 
-const statusStyles = {
-  Processing: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+const STATUS_STYLES = {
+  pending:
+    "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
 
-  Shipped:
-    "bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400",
+  confirmed: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
 
-  Delivered:
-    "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+  processing:
+    "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400",
 
-  Pending:
-    "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+  shipped: "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400",
+
+  delivered:
+    "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+
+  cancelled: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400",
 };
 
-const paymentStyles = {
-  Paid: "text-emerald-600 dark:text-emerald-400",
+const PAYMENT_STYLES = {
+  paid: "text-emerald-600 dark:text-emerald-400",
 
-  Pending: "text-amber-600 dark:text-amber-400",
+  pending: "text-amber-600 dark:text-amber-400",
 
-  Failed: "text-red-500 dark:text-red-400",
+  failed: "text-red-500 dark:text-red-400",
+
+  refunded: "text-blue-600 dark:text-blue-400",
 };
 
-export default function AdminRecentOrders() {
-  const navigate = useNavigate();
+function formatPrice(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+}
 
-  const handleViewOrder = (order) => {
-    console.log("View order:", order.id);
+function formatDate(value) {
+  if (!value) {
+    return "Unknown";
+  }
 
-    // Later connect this to the admin order details route.
-  };
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function getShortOrderId(orderId) {
+  if (!orderId) {
+    return "UNKNOWN";
+  }
+
+  return orderId.slice(-8).toUpperCase();
+}
+
+function getCustomerName(order) {
+  return order?.user?.name || "Deleted customer";
+}
+
+function getCustomerEmail(order) {
+  return order?.user?.email || "Email unavailable";
+}
+
+function createInitials(name = "") {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return initials || "CU";
+}
+
+export default function AdminRecentOrders({ orders = [] }) {
+  const safeOrders = Array.isArray(orders) ? orders : [];
 
   return (
-    <section
-      className="
-        overflow-hidden
-        rounded-2xl
-        border
-        border-slate-200
-        bg-white
-        shadow-sm
-        dark:border-slate-800
-        dark:bg-slate-900
-      "
-    >
-      {/* ============================================================
-          HEADER
-      ============================================================ */}
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <RecentOrdersHeader />
 
-      <div
-        className="
-          flex
-          items-center
-          justify-between
-          gap-3
-          border-b
-          border-slate-100
-          px-4
-          py-4
-          sm:px-5
-          dark:border-slate-800
-        "
+      {safeOrders.length > 0 ? (
+        <>
+          <DesktopOrderTable orders={safeOrders} />
+
+          <MobileOrderList orders={safeOrders} />
+        </>
+      ) : (
+        <RecentOrdersEmpty />
+      )}
+    </section>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Header
+|--------------------------------------------------------------------------
+*/
+
+function RecentOrdersHeader() {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 dark:border-slate-800">
+      <div>
+        <h2 className="text-sm font-bold text-slate-950 dark:text-white">
+          Recent Orders
+        </h2>
+
+        <p className="mt-0.5 text-[11px] text-slate-400">
+          Latest customer orders
+        </p>
+      </div>
+
+      <Link
+        to="/admin/orders"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
       >
-        <div>
-          <h2 className="text-sm font-bold text-slate-950 dark:text-white">
-            Recent Orders
-          </h2>
+        View all
+        <ArrowRight size={14} />
+      </Link>
+    </div>
+  );
+}
 
-          <p className="mt-0.5 text-[11px] text-slate-400">
-            Latest customer orders
+/*
+|--------------------------------------------------------------------------
+| Desktop table
+|--------------------------------------------------------------------------
+*/
+
+function DesktopOrderTable({ orders }) {
+  return (
+    <div className="hidden overflow-x-auto md:block">
+      <table className="w-full min-w-[760px]">
+        <thead>
+          <tr className="border-b border-slate-100 text-left dark:border-slate-800">
+            <TableHeading>Order</TableHeading>
+
+            <TableHeading>Customer</TableHeading>
+
+            <TableHeading>Amount</TableHeading>
+
+            <TableHeading>Payment</TableHeading>
+
+            <TableHeading>Status</TableHeading>
+
+            <TableHeading>Date</TableHeading>
+
+            <th scope="col" className="px-5 py-3">
+              <span className="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {orders.map((order) => (
+            <DesktopOrderRow key={order._id} order={order} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TableHeading({ children }) {
+  return (
+    <th
+      scope="col"
+      className="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+    >
+      {children}
+    </th>
+  );
+}
+
+function DesktopOrderRow({ order }) {
+  const customerName = getCustomerName(order);
+
+  const customerEmail = getCustomerEmail(order);
+
+  return (
+    <tr className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70 dark:border-slate-800 dark:hover:bg-slate-800/40">
+      <td className="px-5 py-4">
+        <Link
+          to={`/admin/orders/${order._id}`}
+          className="text-xs font-semibold text-slate-900 transition-colors hover:text-emerald-600 dark:text-white"
+        >
+          #{getShortOrderId(order._id)}
+        </Link>
+      </td>
+
+      <td className="px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+            {createInitials(customerName)}
+          </div>
+
+          <div className="min-w-0">
+            <p className="max-w-40 truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
+              {customerName}
+            </p>
+
+            <p className="max-w-40 truncate text-[10px] text-slate-400">
+              {customerEmail}
+            </p>
+          </div>
+        </div>
+      </td>
+
+      <td className="px-5 py-4">
+        <span className="text-xs font-bold text-slate-900 dark:text-white">
+          {formatPrice(order.total)}
+        </span>
+      </td>
+
+      <td className="px-5 py-4">
+        <PaymentStatus status={order.paymentStatus} />
+      </td>
+
+      <td className="px-5 py-4">
+        <OrderStatus status={order.orderStatus} />
+      </td>
+
+      <td className="whitespace-nowrap px-5 py-4 text-[10px] text-slate-400">
+        {formatDate(order.createdAt)}
+      </td>
+
+      <td className="px-5 py-4 text-right">
+        <Link
+          to={`/admin/orders/${order._id}`}
+          aria-label={`View order ${getShortOrderId(order._id)}`}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+        >
+          <Eye size={15} />
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Mobile cards
+|--------------------------------------------------------------------------
+*/
+
+function MobileOrderList({ orders }) {
+  return (
+    <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+      {orders.map((order) => (
+        <MobileOrderCard key={order._id} order={order} />
+      ))}
+    </div>
+  );
+}
+
+function MobileOrderCard({ order }) {
+  return (
+    <Link
+      to={`/admin/orders/${order._id}`}
+      className="block p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold text-slate-950 dark:text-white">
+            #{getShortOrderId(order._id)}
+          </p>
+
+          <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+            {getCustomerName(order)}
+          </p>
+
+          <p className="mt-0.5 text-[10px] text-slate-400">
+            {formatDate(order.createdAt)}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate("/admin/orders")}
-          className="
-            inline-flex
-            items-center
-            gap-1.5
-            text-xs
-            font-semibold
-            text-emerald-600
-            transition-colors
-            hover:text-emerald-700
-            dark:text-emerald-400
-            dark:hover:text-emerald-300
-          "
-        >
-          View all
-          <ArrowRight size={14} />
-        </button>
+        <p className="text-sm font-bold text-slate-950 dark:text-white">
+          {formatPrice(order.total)}
+        </p>
       </div>
 
-      {/* ============================================================
-          DESKTOP TABLE
-      ============================================================ */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <OrderStatus status={order.orderStatus} />
 
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[760px]">
-          <thead>
-            <tr
-              className="
-                border-b
-                border-slate-100
-                text-left
-                dark:border-slate-800
-              "
-            >
-              <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Order
-              </th>
+        <PaymentStatus status={order.paymentStatus} />
+      </div>
+    </Link>
+  );
+}
 
-              <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Customer
-              </th>
+/*
+|--------------------------------------------------------------------------
+| Status components
+|--------------------------------------------------------------------------
+*/
 
-              <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Amount
-              </th>
+function OrderStatus({ status = "pending" }) {
+  const normalizedStatus = String(status).toLowerCase();
 
-              <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Payment
-              </th>
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${
+        STATUS_STYLES[normalizedStatus] ||
+        "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+      }`}
+    >
+      {normalizedStatus}
+    </span>
+  );
+}
 
-              <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Status
-              </th>
+function PaymentStatus({ status = "pending" }) {
+  const normalizedStatus = String(status).toLowerCase();
 
-              <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Date
-              </th>
+  return (
+    <span
+      className={`text-xs font-semibold capitalize ${
+        PAYMENT_STYLES[normalizedStatus] || "text-slate-500 dark:text-slate-400"
+      }`}
+    >
+      {normalizedStatus}
+    </span>
+  );
+}
 
-              <th className="px-5 py-3" />
-            </tr>
-          </thead>
+/*
+|--------------------------------------------------------------------------
+| Empty
+|--------------------------------------------------------------------------
+*/
 
-          <tbody>
-            {orders.map((order) => (
-              <tr
-                key={order.id}
-                className="
-                  border-b
-                  border-slate-100
-                  last:border-0
-                  transition-colors
-                  hover:bg-slate-50/70
-                  dark:border-slate-800
-                  dark:hover:bg-slate-800/40
-                "
-              >
-                {/* Order */}
-
-                <td className="px-5 py-4">
-                  <span className="text-xs font-semibold text-slate-900 dark:text-white">
-                    {order.id}
-                  </span>
-                </td>
-
-                {/* Customer */}
-
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="
-                        flex
-                        h-8
-                        w-8
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-full
-                        bg-emerald-50
-                        text-[10px]
-                        font-bold
-                        text-emerald-700
-                        dark:bg-emerald-950/50
-                        dark:text-emerald-400
-                      "
-                    >
-                      {order.customer
-                        .split(" ")
-                        .map((name) => name[0])
-                        .join("")}
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
-                        {order.customer}
-                      </p>
-
-                      <p className="truncate text-[10px] text-slate-400">
-                        {order.email}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-
-                {/* Amount */}
-
-                <td className="px-5 py-4">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    {order.amount}
-                  </span>
-                </td>
-
-                {/* Payment */}
-
-                <td className="px-5 py-4">
-                  <span
-                    className={`
-                      text-xs
-                      font-semibold
-                      ${paymentStyles[order.payment] || "text-slate-500"}
-                    `}
-                  >
-                    {order.payment}
-                  </span>
-                </td>
-
-                {/* Status */}
-
-                <td className="px-5 py-4">
-                  <span
-                    className={`
-                      inline-flex
-                      rounded-full
-                      px-2.5
-                      py-1
-                      text-[10px]
-                      font-semibold
-                      ${statusStyles[order.status]}
-                    `}
-                  >
-                    {order.status}
-                  </span>
-                </td>
-
-                {/* Date */}
-
-                <td className="whitespace-nowrap px-5 py-4 text-[10px] text-slate-400">
-                  {order.date}
-                </td>
-
-                {/* Action */}
-
-                <td className="px-5 py-4 text-right">
-                  <button
-                    type="button"
-                    onClick={() => handleViewOrder(order)}
-                    aria-label={`View ${order.id}`}
-                    className="
-                      inline-flex
-                      h-8
-                      w-8
-                      items-center
-                      justify-center
-                      rounded-lg
-                      text-slate-400
-                      transition-colors
-                      hover:bg-slate-100
-                      hover:text-slate-700
-                      dark:hover:bg-slate-800
-                      dark:hover:text-white
-                    "
-                  >
-                    <Eye size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+function RecentOrdersEmpty() {
+  return (
+    <div className="flex min-h-64 flex-col items-center justify-center p-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800">
+        <ShoppingBag size={21} />
       </div>
 
-      {/* ============================================================
-          MOBILE CARDS
-      ============================================================ */}
+      <p className="mt-4 text-sm font-semibold text-slate-800 dark:text-white">
+        No orders yet
+      </p>
 
-      <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
-        {orders.map((order) => (
-          <article key={order.id} className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold text-slate-900 dark:text-white">
-                  {order.id}
-                </p>
-
-                <p className="mt-1 text-[11px] text-slate-400">{order.date}</p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleViewOrder(order)}
-                className="
-                  flex
-                  h-8
-                  w-8
-                  items-center
-                  justify-center
-                  rounded-lg
-                  text-slate-400
-                  hover:bg-slate-100
-                  dark:hover:bg-slate-800
-                "
-              >
-                <Eye size={15} />
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2.5">
-              <div
-                className="
-                  flex
-                  h-8
-                  w-8
-                  shrink-0
-                  items-center
-                  justify-center
-                  rounded-full
-                  bg-emerald-50
-                  text-[10px]
-                  font-bold
-                  text-emerald-700
-                  dark:bg-emerald-950/50
-                  dark:text-emerald-400
-                "
-              >
-                {order.customer
-                  .split(" ")
-                  .map((name) => name[0])
-                  .join("")}
-              </div>
-
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  {order.customer}
-                </p>
-
-                <p className="truncate text-[10px] text-slate-400">
-                  {order.email}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] text-slate-400">Amount</p>
-
-                <p className="mt-0.5 text-sm font-bold text-slate-900 dark:text-white">
-                  {order.amount}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] text-slate-400">Payment</p>
-
-                <p
-                  className={`
-                    mt-0.5
-                    text-xs
-                    font-semibold
-                    ${paymentStyles[order.payment] || "text-slate-500"}
-                  `}
-                >
-                  {order.payment}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] text-slate-400">Status</p>
-
-                <span
-                  className={`
-                    mt-1
-                    inline-flex
-                    rounded-full
-                    px-2
-                    py-1
-                    text-[10px]
-                    font-semibold
-                    ${statusStyles[order.status]}
-                  `}
-                >
-                  {order.status}
-                </span>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
+      <p className="mt-1 text-xs text-slate-400">
+        New customer orders will appear here.
+      </p>
+    </div>
   );
 }
