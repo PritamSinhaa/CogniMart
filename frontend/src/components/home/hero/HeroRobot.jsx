@@ -1,53 +1,37 @@
 import { motion } from "motion/react";
-import robotImage from "../../../assets/images/cognimart-robot.svg";
+
+const HERO_IMAGE = "/images/cognimart-ai-commerce.png";
+
 export default function HeroRobot() {
   return (
-    <div className="relative mx-auto flex w-full max-w-xl items-center justify-center">
-      {/* Glow */}
-      <motion.div
-        className="
-          absolute
-          h-64
-          w-64
-          rounded-full
-          bg-emerald-400/20
-          blur-3xl
-          sm:h-80
-          sm:w-80
-        "
-        animate={{
-          scale: [1, 1.15, 1],
-          opacity: [0.35, 0.55, 0.35],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+    <div className="relative mx-auto flex w-full max-w-2xl items-center justify-center">
+      <div
+        aria-hidden="true"
+        className="absolute h-[70%] w-[70%] rounded-full bg-emerald-400/15 blur-3xl dark:bg-emerald-500/10"
       />
 
-      {/* Robot */}
       <motion.div
-        className="relative z-10 w-[75%] sm:w-[80%] lg:w-[90%]"
+        initial={{
+          opacity: 0,
+          scale: 0.94,
+          y: 18,
+        }}
         animate={{
-          y: [0, -12, 0],
-          rotate: [0, 1, 0, -1, 0],
+          opacity: 1,
+          scale: 1,
+          y: 0,
         }}
         transition={{
-          duration: 5,
-          repeat: Infinity,
-          ease: "easeInOut",
+          duration: 0.7,
+          ease: [0.22, 1, 0.36, 1],
         }}
+        className="relative z-10 w-full"
       >
         <img
-          src={robotImage}
-          alt="CogniMart AI shopping assistant"
-          className="
-            h-auto
-            w-full
-            object-contain
-            drop-shadow-2xl
-          "
+          src={HERO_IMAGE}
+          alt="CogniMart intelligent multi-agent shopping platform"
+          draggable="false"
+          className="h-auto w-full select-none object-contain drop-shadow-[0_24px_35px_rgba(5,150,105,0.16)]"
         />
       </motion.div>
     </div>

@@ -1,48 +1,45 @@
 import { useEffect, useState } from "react";
 
-import { getProducts } from "../api/products.api";
+import { getProductById } from "../api/products.api";
 
-import { mapProducts } from "../lib/productMapper";
+import { mapProduct } from "../lib/productMapper";
 
-function extractProducts(response) {
-  return response?.data?.products || response?.products || response?.data || [];
+function extractProduct(response) {
+  return response?.data?.product || response?.product || response?.data || null;
 }
 
-function extractPagination(response) {
-  return response?.data?.pagination || response?.pagination || null;
+function getErrorMessage(error) {
+  return error?.data?.message || error?.message || "Unable to load product.";
 }
 
-export default function useProducts(params = {}) {
-  const [products, setProducts] = useState([]);
-
-  const [pagination, setPagination] = useState(null);
+export default function useProduct(productId) {
+  const [product, setProduct] = useState(null);
 
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
 
-  /*
-   * Converts the parameter object into a stable
-   * dependency value.
-   *
-   * This prevents unnecessary API requests when a
-   * component passes an object literal such as:
-   *
-   * useProducts({ limit: 6 })
-   */
-  const paramsKey = JSON.stringify(params);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    const requestParams = JSON.parse(paramsKey);
+    async function loadProduct() {
+      if (!productId) {
+        setProduct(null);
+        setError("");
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
 
-    async function loadProducts() {
       try {
         setLoading(true);
         setError("");
+        setNotFound(false);
+        setProduct(null);
 
-        const response = await getProducts(requestParams, {
+        const response = await getProductById(productId, {
           signal: controller.signal,
         });
 
@@ -50,24 +47,32 @@ export default function useProducts(params = {}) {
           return;
         }
 
-        const rawProducts = extractProducts(response);
+        const rawProduct = extractProduct(response);
 
-        setProducts(mapProducts(rawProducts));
+        const mappedProduct = mapProduct(rawProduct);
 
-        setPagination(extractPagination(response));
-      } catch (requestError) {
-        if (requestError?.name === "AbortError") {
+        if (!mappedProduct) {
+          setNotFound(true);
           return;
         }
 
-        setProducts([]);
-        setPagination(null);
+        setProduct(mappedProduct);
+      } catch (requestError) {
+        if (requestError?.name === "AbortError" || controller.signal.aborted) {
+          return;
+        }
 
-        setError(
-          requestError?.data?.message ||
-            requestError?.message ||
-            "Unable to load products.",
-        );
+        setProduct(null);
+
+        if (requestError?.status === 404) {
+          setNotFound(true);
+          setError("");
+          return;
+        }
+
+        setNotFound(false);
+
+        setError(getErrorMessage(requestError));
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -75,17 +80,17 @@ export default function useProducts(params = {}) {
       }
     }
 
-    loadProducts();
+    loadProduct();
 
     return () => {
       controller.abort();
     };
-  }, [paramsKey]);
+  }, [productId]);
 
   return {
-    products,
-    pagination,
+    product,
     loading,
     error,
+    notFound,
   };
 }

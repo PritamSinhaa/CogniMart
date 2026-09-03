@@ -1,229 +1,218 @@
-import { ArrowRight, TrendingUp } from "lucide-react";
+import { ArrowRight, PackageSearch, TrendingUp } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
-const products = [
-  {
-    id: "1",
-    name: "Sony WH-1000XM5",
-    category: "Headphones",
-    image:
-      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=200&q=80",
-    sold: 248,
-    revenue: "₹8,92,000",
-  },
-  {
-    id: "2",
-    name: "Mechanical Gaming Keyboard",
-    category: "Keyboards",
-    image:
-      "https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=200&q=80",
-    sold: 196,
-    revenue: "₹4,86,000",
-  },
-  {
-    id: "3",
-    name: "Apple AirPods Pro",
-    category: "Earbuds",
-    image:
-      "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?auto=format&fit=crop&w=200&q=80",
-    sold: 174,
-    revenue: "₹4,35,000",
-  },
-  {
-    id: "4",
-    name: "Logitech MX Master 3S",
-    category: "Mouse",
-    image:
-      "https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=200&q=80",
-    sold: 142,
-    revenue: "₹1,84,000",
-  },
-  {
-    id: "5",
-    name: "Samsung 27-inch Monitor",
-    category: "Monitors",
-    image:
-      "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=200&q=80",
-    sold: 118,
-    revenue: "₹2,95,000",
-  },
-];
+const FALLBACK_IMAGE = "/images/product-placeholder.png";
 
-export default function AdminTopProducts() {
+function formatPrice(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+}
+
+function formatNumber(value) {
+  return (Number(value) || 0).toLocaleString("en-IN");
+}
+
+export default function AdminTopProducts({ products = [] }) {
   const navigate = useNavigate();
 
+  const safeProducts = Array.isArray(products) ? products : [];
+
+  const handleProductClick = (productId) => {
+    /*
+     * Historical orders can contain
+     * products that were permanently
+     * removed from the database.
+     */
+    if (!productId) {
+      return;
+    }
+
+    navigate(`/admin/products/${productId}/edit`);
+  };
+
   return (
-    <section
-      className="
-        overflow-hidden
-        rounded-2xl
-        border
-        border-slate-200
-        bg-white
-        shadow-sm
-        dark:border-slate-800
-        dark:bg-slate-900
-      "
-    >
-      {/* Header */}
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <Header onViewAll={() => navigate("/admin/products")} />
 
-      <div
-        className="
-          flex
-          items-center
-          justify-between
-          gap-3
-          border-b
-          border-slate-100
-          px-4
-          py-4
-          sm:px-5
-          dark:border-slate-800
-        "
-      >
-        <div>
-          <div className="flex items-center gap-2">
-            <div
-              className="
-                flex
-                h-8
-                w-8
-                items-center
-                justify-center
-                rounded-lg
-                bg-emerald-50
-                text-emerald-600
-                dark:bg-emerald-950/40
-                dark:text-emerald-400
-              "
-            >
-              <TrendingUp size={16} />
-            </div>
+      {safeProducts.length > 0 ? (
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          {safeProducts.map((product, index) => (
+            <ProductRow
+              key={product.id || `${product.name}-${index}`}
+              product={product}
+              rank={index + 1}
+              onClick={handleProductClick}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState />
+      )}
+    </section>
+  );
+}
 
-            <h2 className="text-sm font-bold text-slate-950 dark:text-white">
-              Top Selling Products
-            </h2>
+/*
+|--------------------------------------------------------------------------
+| Header
+|--------------------------------------------------------------------------
+*/
+
+function Header({ onViewAll }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 dark:border-slate-800">
+      <div>
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+            <TrendingUp size={16} />
           </div>
 
-          <p className="mt-1 text-[11px] text-slate-400">
-            Best performing products this month
-          </p>
+          <h2 className="text-sm font-bold text-slate-950 dark:text-white">
+            Top Selling Products
+          </h2>
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate("/admin/products")}
-          className="
-            inline-flex
-            items-center
-            gap-1.5
-            text-xs
-            font-semibold
-            text-emerald-600
-            hover:text-emerald-700
-            dark:text-emerald-400
-          "
-        >
-          View all
-          <ArrowRight size={14} />
-        </button>
+        <p className="mt-1 text-[11px] text-slate-400">
+          Ranked from paid and delivered orders
+        </p>
       </div>
 
-      {/* Products */}
+      <button
+        type="button"
+        onClick={onViewAll}
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+      >
+        View all
+        <ArrowRight size={14} />
+      </button>
+    </div>
+  );
+}
 
-      <div className="divide-y divide-slate-100 dark:divide-slate-800">
-        {products.map((product, index) => (
-          <button
-            key={product.id}
-            type="button"
-            onClick={() => navigate(`/admin/products/${product.id}`)}
-            className="
-              flex
-              w-full
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-left
-              transition-colors
-              hover:bg-slate-50
-              sm:px-5
-              dark:hover:bg-slate-800/40
-            "
-          >
-            {/* Rank */}
+/*
+|--------------------------------------------------------------------------
+| Product row
+|--------------------------------------------------------------------------
+*/
 
-            <span
-              className="
-                w-5
-                shrink-0
-                text-center
-                text-xs
-                font-bold
-                text-slate-400
-              "
-            >
-              {index + 1}
-            </span>
+function ProductRow({ product, rank, onClick }) {
+  const productId = product.id || product._id;
 
-            {/* Image */}
+  const canOpen = Boolean(productId);
 
-            <div
-              className="
-                h-11
-                w-11
-                shrink-0
-                overflow-hidden
-                rounded-xl
-                bg-slate-100
-                dark:bg-slate-800
-              "
-            >
-              <img
-                src={product.image}
-                alt={product.name}
-                className="h-full w-full object-cover"
-              />
-            </div>
+  const unitsSold = Math.max(Number(product.unitsSold ?? product.sold) || 0, 0);
 
-            {/* Product */}
+  const revenue = Math.max(Number(product.revenue) || 0, 0);
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-slate-900 dark:text-white">
-                {product.name}
-              </p>
+  const image = product.image || product.images?.[0] || FALLBACK_IMAGE;
 
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                {product.category}
-              </p>
-            </div>
+  const category =
+    typeof product.category === "object"
+      ? product.category?.name
+      : product.category;
 
-            {/* Sales */}
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
 
-            <div className="hidden text-right sm:block">
-              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                {product.sold} sold
-              </p>
+    event.currentTarget.src = FALLBACK_IMAGE;
+  };
 
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                {product.revenue}
-              </p>
-            </div>
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(productId)}
+      disabled={!canOpen}
+      aria-label={
+        canOpen
+          ? `Edit ${product.name}`
+          : `${product.name} is no longer available`
+      }
+      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-transparent sm:px-5 dark:hover:bg-slate-800/40 dark:disabled:hover:bg-transparent"
+    >
+      {/* Rank */}
 
-            {/* Mobile revenue */}
+      <span className="w-5 shrink-0 text-center text-xs font-bold text-slate-400">
+        {rank}
+      </span>
 
-            <div className="text-right sm:hidden">
-              <p className="text-xs font-bold text-slate-900 dark:text-white">
-                {product.revenue}
-              </p>
+      {/* Product image */}
 
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                {product.sold} sold
-              </p>
-            </div>
-          </button>
-        ))}
+      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+        <img
+          src={image}
+          alt={product.name || "Product"}
+          loading="lazy"
+          onError={handleImageError}
+          className="h-full w-full object-cover"
+        />
       </div>
-    </section>
+
+      {/* Product information */}
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-semibold text-slate-900 dark:text-white">
+          {product.name || "Unknown product"}
+        </p>
+
+        <p className="mt-0.5 truncate text-[10px] text-slate-400">
+          {category || "Uncategorized"}
+
+          {!canOpen && " · Product removed"}
+        </p>
+      </div>
+
+      {/* Desktop sales */}
+
+      <div className="hidden shrink-0 text-right sm:block">
+        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+          {formatNumber(unitsSold)} {unitsSold === 1 ? "unit" : "units"} sold
+        </p>
+
+        <p className="mt-0.5 text-[10px] text-slate-400">
+          {formatPrice(revenue)}
+        </p>
+      </div>
+
+      {/* Mobile sales */}
+
+      <div className="shrink-0 text-right sm:hidden">
+        <p className="text-xs font-bold text-slate-900 dark:text-white">
+          {formatPrice(revenue)}
+        </p>
+
+        <p className="mt-0.5 text-[10px] text-slate-400">
+          {formatNumber(unitsSold)} sold
+        </p>
+      </div>
+    </button>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Empty state
+|--------------------------------------------------------------------------
+*/
+
+function EmptyState() {
+  return (
+    <div className="flex min-h-64 flex-col items-center justify-center px-5 py-10 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800">
+        <PackageSearch size={22} />
+      </div>
+
+      <h3 className="mt-4 text-sm font-bold text-slate-900 dark:text-white">
+        No sales data yet
+      </h3>
+
+      <p className="mt-1 max-w-xs text-xs leading-5 text-slate-500 dark:text-slate-400">
+        Top-selling products will appear after orders are paid and delivered.
+      </p>
+    </div>
   );
 }

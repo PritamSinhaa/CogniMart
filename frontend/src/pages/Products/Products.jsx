@@ -21,6 +21,12 @@ const INITIAL_FILTERS = {
   inStock: false,
 };
 
+const PRODUCTS_QUERY = {
+  page: 1,
+  limit: 100,
+  sort: "newest",
+};
+
 export default function Products() {
   /*
    * Backend products
@@ -29,7 +35,7 @@ export default function Products() {
     products,
     loading: productsLoading,
     error: productsError,
-  } = useProducts();
+  } = useProducts(PRODUCTS_QUERY);
 
   /*
    * Backend categories

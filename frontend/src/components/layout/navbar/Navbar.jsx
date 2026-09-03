@@ -1,13 +1,16 @@
+import { Menu, ShoppingCart, X } from "lucide-react";
+
 import { useState } from "react";
-import { Menu, X, ShoppingCart } from "lucide-react";
+
 import { Link } from "react-router-dom";
+
 import { useCart } from "../../../context/CartContext";
 
-import Logo from "./Logo";
 import DesktopNav from "./DesktopNav";
-import SearchBar from "./SearchBar";
-import NavbarActions from "./NavbarActions";
+import Logo from "./Logo";
 import MobileMenu from "./MobileMenu";
+import NavbarActions from "./NavbarActions";
+import SearchBar from "./SearchBar";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,32 +21,53 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   };
 
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen((currentValue) => !currentValue);
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/70 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95">
+      {/* Desktop navbar */}
+
+      <div className="hidden lg:block">
+        {/* Top row */}
+
+        <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center gap-6 px-6 xl:px-8">
+          <Logo />
+
+          <div className="min-w-0 flex-1">
+            <SearchBar />
+          </div>
+
+          <NavbarActions />
+        </div>
+
+        {/* Bottom row */}
+
+        <div className="border-t border-slate-100 dark:border-slate-800">
+          <nav
+            aria-label="Main navigation"
+            className="mx-auto flex h-11 w-full max-w-[1600px] items-center px-6 xl:px-8"
+          >
+            <DesktopNav />
+          </nav>
+        </div>
+      </div>
+
+      {/* Mobile navbar */}
+
       <nav
-        className="mx-auto flex h-16 max-w-[1600px] items-center gap-4 px-4 sm:px-6 lg:px-8"
-        aria-label="Main navigation"
+        aria-label="Mobile header"
+        className="mx-auto flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:hidden"
       >
-        {/* Logo */}
         <Logo />
 
-        {/* Desktop navigation */}
-        <DesktopNav />
-
-        {/* Search */}
-        <SearchBar />
-
-        {/* Desktop actions */}
-        <NavbarActions />
-
-        {/* Mobile actions */}
-        <div className="ml-auto flex items-center gap-2 lg:hidden">
-          {/* Cart */}
+        <div className="ml-auto flex items-center gap-1">
           <Link
             to="/cart"
             onClick={closeMobileMenu}
             aria-label={`Shopping cart with ${cartCount} items`}
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
           >
             <ShoppingCart size={20} />
 
@@ -54,26 +78,23 @@ export default function Navbar() {
             )}
           </Link>
 
-          {/* Mobile menu button */}
           <button
             type="button"
-            onClick={() => setMobileMenuOpen((value) => !value)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
+            onClick={toggleMobileMenu}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-200 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
           >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
           </button>
         </div>
       </nav>
 
-      {/* Mobile navigation */}
+      {/* Mobile dropdown */}
+
       <div id="mobile-navigation">
-        <MobileMenu
-          open={mobileMenuOpen}
-          onClose={closeMobileMenu}
-        />
+        <MobileMenu open={mobileMenuOpen} onClose={closeMobileMenu} />
       </div>
     </header>
   );
