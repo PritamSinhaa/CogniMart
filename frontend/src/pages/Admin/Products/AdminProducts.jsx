@@ -15,7 +15,7 @@ import { useNavigate } from "react-router-dom";
 
 import useAdminProducts from "../../../hooks/useAdminProducts";
 
-const FALLBACK_IMAGE = "/product-placeholder.svg";
+const FALLBACK_IMAGE = "/images/product-placeholder.png";
 
 const STOCK_OPTIONS = ["All stock", "In stock", "Low stock", "Out of stock"];
 
