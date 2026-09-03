@@ -1,6 +1,6 @@
 import asyncHandler from "../../utils/asyncHandler.js";
 import { registerService, loginService } from "./auth.service.js";
-import sendToken from "../../utils/sendToken.js";
+import sendToken, { getAuthCookieOptions } from "../../utils/sendToken.js";
 
 export const register = asyncHandler(async (req, res) => {
   const user = await registerService(req.body);
@@ -47,11 +47,7 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
+  res.clearCookie("accessToken", getAuthCookieOptions());
 
   return res.status(200).json({
     success: true,

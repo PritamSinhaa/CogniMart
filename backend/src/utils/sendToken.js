@@ -1,21 +1,29 @@
 import generateToken from "./generateToken.js";
 
+export function getAuthCookieOptions() {
+  const isProduction =
+    process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 60 * 60 * 1000,
+  };
+}
+
 const sendToken = (user, statusCode, res, message) => {
-  // Generate JWT
   const token = generateToken({
     id: user.id,
     role: user.role,
   });
 
-  // Set HttpOnly Cookie
-  res.cookie("accessToken", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 60 * 60 * 1000, // 15 minutes
-  });
+  res.cookie(
+    "accessToken",
+    token,
+    getAuthCookieOptions(),
+  );
 
-  // Send Response
   return res.status(statusCode).json({
     success: true,
     message,
