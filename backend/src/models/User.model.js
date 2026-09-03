@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    
+
     isActive: {
       type: Boolean,
       default: true,
@@ -53,11 +53,7 @@ userSchema.pre("save", async function () {
     return;
   }
 
-  console.log("Password before hashing:", this.password);
-
   this.password = await bcrypt.hash(this.password, 10);
-
-  console.log("Password hashed successfully");
 });
 const User = mongoose.model("User", userSchema);
 

@@ -1,6 +1,23 @@
 import Cart from "../../models/Cart.model.js";
 import Product from "../../models/Product.model.js";
+
 import AppError from "../../utils/AppError.js";
+
+/*
+|--------------------------------------------------------------------------
+| Population configuration
+|--------------------------------------------------------------------------
+|
+| Product.category is stored as a string, not as a MongoDB ObjectId.
+| Therefore, category must not be populated.
+|
+*/
+
+const CART_PRODUCT_POPULATE = {
+  path: "items.product",
+
+  select: "name slug price discount images stock category brand isActive",
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -8,18 +25,13 @@ import AppError from "../../utils/AppError.js";
 |--------------------------------------------------------------------------
 */
 
-const populateCart = async (cartId) => {
-  return Cart.findById(cartId)
-    .populate({
-      path: "items.product",
-      select: "name slug price discount images stock category brand isActive",
-      populate: {
-        path: "category",
-        select: "name slug",
-      },
-    })
-    .lean();
-};
+async function populateCart(cartId) {
+  return Cart.findById(cartId).populate(CART_PRODUCT_POPULATE).lean();
+}
+
+function findCartItem(cart, productId) {
+  return cart.items.find((item) => String(item.product) === String(productId));
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -55,12 +67,18 @@ export const addToCartService = async (userId, productId, quantity) => {
     user: userId,
   });
 
+  /*
+   * Create a new cart when the
+   * customer does not have one.
+   */
   if (!cart) {
     cart = await Cart.create({
       user: userId,
+
       items: [
         {
           product: productId,
+
           quantity,
         },
       ],
@@ -69,9 +87,7 @@ export const addToCartService = async (userId, productId, quantity) => {
     return populateCart(cart._id);
   }
 
-  const existingItem = cart.items.find(
-    (item) => item.product.toString() === productId.toString(),
-  );
+  const existingItem = findCartItem(cart, productId);
 
   if (existingItem) {
     const newQuantity = existingItem.quantity + quantity;
@@ -106,14 +122,7 @@ export const getCartService = async (userId) => {
   const cart = await Cart.findOne({
     user: userId,
   })
-    .populate({
-      path: "items.product",
-      select: "name slug price discount images stock category brand isActive",
-      populate: {
-        path: "category",
-        select: "name slug",
-      },
-    })
+    .populate(CART_PRODUCT_POPULATE)
     .lean();
 
   if (!cart) {
@@ -128,7 +137,7 @@ export const getCartService = async (userId) => {
 
 /*
 |--------------------------------------------------------------------------
-| Update quantity
+| Update item quantity
 |--------------------------------------------------------------------------
 */
 
@@ -164,9 +173,7 @@ export const updateCartItemService = async (userId, productId, quantity) => {
     );
   }
 
-  const existingItem = cart.items.find(
-    (item) => item.product.toString() === productId.toString(),
-  );
+  const existingItem = findCartItem(cart, productId);
 
   if (!existingItem) {
     throw new AppError("Product is not in your cart", 404);
@@ -194,16 +201,14 @@ export const removeCartItemService = async (userId, productId) => {
     throw new AppError("Cart not found", 404);
   }
 
-  const itemExists = cart.items.some(
-    (item) => item.product.toString() === productId.toString(),
-  );
+  const itemExists = Boolean(findCartItem(cart, productId));
 
   if (!itemExists) {
     throw new AppError("Product is not in your cart", 404);
   }
 
   cart.items = cart.items.filter(
-    (item) => item.product.toString() !== productId.toString(),
+    (item) => String(item.product) !== String(productId),
   );
 
   await cart.save();
@@ -223,8 +228,9 @@ export const clearCartService = async (userId) => {
   });
 
   /*
-   * Clearing an already-empty/nonexistent cart should be
-   * idempotent, not a 404 error.
+   * Clearing a nonexistent cart
+   * is treated as a successful,
+   * idempotent operation.
    */
   if (!cart) {
     return {

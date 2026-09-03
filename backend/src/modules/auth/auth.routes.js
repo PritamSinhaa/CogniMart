@@ -10,10 +10,7 @@ import {
 import validate from "../../middleware/validate.middleware.js";
 import isAuthenticated from "../../middleware/isAuthenticated.middleware.js";
 import authorize from "../../middleware/authorize.middleware.js";
-import {
-  registerSchema,
-  loginSchema,
-} from "./auth.validation.js";
+import { registerSchema, loginSchema } from "./auth.validation.js";
 
 const router = express.Router();
 
@@ -23,13 +20,8 @@ router.post("/login", validate(loginSchema), login);
 
 router.get("/me", isAuthenticated, getMe);
 
-router.post("/logout", isAuthenticated, logout);
+router.post("/logout", logout);
 
-router.get(
-  "/admin",
-  isAuthenticated,
-  authorize("admin"),
-  adminDashboard
-);
+router.get("/admin", isAuthenticated, authorize("admin"), adminDashboard);
 
 export default router;

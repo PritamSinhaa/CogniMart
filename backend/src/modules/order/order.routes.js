@@ -6,6 +6,7 @@ import {
   getOrderById,
   cancelOrder,
   getAllOrders,
+  getAdminOrderById,
   updateOrderStatus,
 } from "./order.controller.js";
 
@@ -37,11 +38,7 @@ router.post(
 );
 
 // Get logged-in user's orders
-router.get(
-  "/",
-  isAuthenticated,
-  asyncHandler(getMyOrders),
-);
+router.get("/", isAuthenticated, asyncHandler(getMyOrders));
 
 /*
 |--------------------------------------------------------------------------
@@ -60,6 +57,13 @@ router.get(
   asyncHandler(getAllOrders),
 );
 
+router.get(
+  "/admin/:orderId",
+  isAuthenticated,
+  authorize("admin"),
+  validate(orderIdSchema, "params"),
+  asyncHandler(getAdminOrderById),
+);
 // Update an order's status
 router.patch(
   "/admin/:orderId/status",

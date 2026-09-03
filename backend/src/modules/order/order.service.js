@@ -431,6 +431,35 @@ export const getMyOrdersService = async (
 
 /*
 |--------------------------------------------------------------------------
+| Admin: get one order
+|--------------------------------------------------------------------------
+*/
+
+export const getAdminOrderByIdService =
+  async (orderId) => {
+    const order =
+      await Order.findById(orderId)
+        .populate(
+          "user",
+          "name email role",
+        )
+        .populate(
+          ORDER_PRODUCT_POPULATE,
+        )
+        .lean();
+
+    if (!order) {
+      throw new AppError(
+        "Order not found",
+        404,
+      );
+    }
+
+    return order;
+  };
+
+/*
+|--------------------------------------------------------------------------
 | Get one customer order
 |--------------------------------------------------------------------------
 */

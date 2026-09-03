@@ -1,8 +1,5 @@
 import asyncHandler from "../../utils/asyncHandler.js";
-import {
-  registerService,
-  loginService,
-} from "./auth.service.js";
+import { registerService, loginService } from "./auth.service.js";
 import sendToken from "../../utils/sendToken.js";
 
 export const register = asyncHandler(async (req, res) => {
@@ -18,17 +15,32 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const getMe = asyncHandler(async (req, res) => {
-  const { _id, name, email, role, isEmailVerified } = req.user;
+  const {
+    _id,
+    id,
+    name,
+    email,
+    role,
+    isActive,
+    isEmailVerified,
+    createdAt,
+    updatedAt,
+  } = req.user;
 
   return res.status(200).json({
     success: true,
+
     data: {
       user: {
-        id: _id,
+        _id,
+        id,
         name,
         email,
         role,
+        isActive,
         isEmailVerified,
+        createdAt,
+        updatedAt,
       },
     },
   });
