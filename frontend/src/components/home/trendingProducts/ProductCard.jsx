@@ -238,15 +238,30 @@ export default function ProductCard({ product, index = 0 }) {
       }}
       transition={{
         duration: 0.45,
-
         delay: Math.min(index * 0.05, 0.3),
-
         ease: [0.22, 1, 0.36, 1],
       }}
       whileHover={{
         y: -4,
       }}
-      className="group h-full"
+      onClick={() => {
+        if (productId) {
+          navigate(`/products/${productId}`);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (productId && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+
+          navigate(`/products/${productId}`);
+        }
+      }}
+      role="link"
+      tabIndex={productId ? 0 : -1}
+      aria-label={`View ${name}`}
+      className={`group h-full ${
+        productId ? "cursor-pointer" : "cursor-default"
+      }`}
     >
       <div
         className="
